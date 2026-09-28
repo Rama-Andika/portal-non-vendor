@@ -14,6 +14,8 @@ import ToastError from "@/components/toast/toast-error";
 import { Loader2Icon, UploadIcon, FileIcon } from "lucide-react";
 import { useUploadNonVendorRequestFileMutation } from "@/queries/non-vendor.queries";
 import { useTranslation } from "react-i18next";
+import type { AxiosError } from "axios";
+import getErrorMessage from "@/utils/error-message";
 
 interface UploadPph23DialogProps {
   id: string | null;
@@ -25,26 +27,8 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
   const [file, setFile] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const { mutate: uploadFile, isPending } = useUploadNonVendorRequestFileMutation({
-    onSuccess: () => {
-      toast.custom((tId) => (
-        <ToastSuccess
-          id={tId}
-          title={t("settlement.submitSuccess")}
-        />
-      ));
-      setFile(null);
-      onClose();
-    },
-    onError: (error: Error) => {
-      toast.custom((tId) => (
-        <ToastError
-          id={tId}
-          title={error.message || t("settlement.submitError")}
-        />
-      ));
-    },
-  });
+  const { mutate: uploadFile, isPending } =
+    useUploadNonVendorRequestFileMutation();
 
   React.useEffect(() => {
     if (id) {
@@ -57,37 +41,42 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (selectedFile.type !== "application/pdf") {
-        toast.custom((tId) => (
-          <ToastError
-            id={tId}
-            title={t("settlement.onlyPdfAllowed")}
-          />
-        ));
-        return;
-      }
-      if (selectedFile.size > 2 * 1024 * 1024) {
-        toast.custom((tId) => (
-          <ToastError
-            id={tId}
-            title={t("settlement.maxSize2mb")}
-          />
-        ));
-        return;
-      }
-      setFile(selectedFile);
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== "application/pdf") {
+      toast(<ToastError message={t("settlement.onlyPdfAllowed")} />);
+      return;
     }
+    if (selectedFile.size > 2 * 1024 * 1024) {
+      toast(<ToastError message={t("settlement.maxSize2mb")} />);
+      return;
+    }
+    setFile(selectedFile);
   };
 
   const handleUpload = () => {
     if (!id || !file) return;
 
-    uploadFile({
-      id,
-      docType: "PPH23",
-      file,
-    });
+    uploadFile(
+      { id, type: "PPH23", file },
+      {
+        onSuccess: () => {
+          toast(<ToastSuccess message={t("settlement.submitSuccess")} />);
+          setFile(null);
+          onClose();
+        },
+        onError: (error: Error) => {
+          toast(
+            <ToastError
+              message={
+                getErrorMessage(error as AxiosError) ||
+                t("settlement.submitError")
+              }
+            />,
+          );
+        },
+      },
+    );
   };
 
   return (

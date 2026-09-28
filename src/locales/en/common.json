@@ -362,13 +362,18 @@
     "dashboardTitle": "Admin Dashboard",
     "dashboardWelcome": "Welcome to the administration panel.",
     "cannotChangeApprovedUser": "User status that is already APPROVED cannot be changed.",
-    "approveNote": "Note: Approving this status will automatically update the vendor data in the backoffice with this user's information (e.g., Name, Phone Number, Bank Account, etc.).",
     "onlyWaitingApprovalCanBeProcessed": "Only requests with status WAITING_APPROVAL can be processed.",
     "changeUserStatusDesc": "Change registration status for this user.",
     "newStatus": "New Status",
     "selectStatusPlaceholder": "Select status...",
-    "vendorCode": "Vendor Code",
-    "vendorCodePlaceholder": "Enter vendor code...",
+    "vendorCode": "Vendor Code / Vendor Name",
+    "vendorCodePlaceholder": "Enter vendor code or name...",
+    "pkpYes": "PKP",
+    "pkpNo": "Non-PKP",
+    "selectVendorHint": "Please select one of the vendors from the search results before saving.",
+    "searchFirstHint": "Please click Search first, then select a vendor.",
+    "vendorSearchNote": "Search for the vendor by code or name, then select one. If no vendor is found, you can still save and a new vendor will be created automatically from the user's data.",
+    "vendorNotFoundShort": "No vendors found.",
     "revisionReasonPlaceholder": "Enter the revision reason clearly...",
     "viewDetails": "View Details",
     "updateStatus": "Update Status",
@@ -407,6 +412,11 @@
     "appErrorTitle": "Application Stopped",
     "appErrorDesc": "A technical error occurred during the session. Please reload to return.",
     "reloadApp": "Reload Application"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "desc": "Sorry, the page you are looking for doesn't exist or has been moved.",
+    "contactSupport": "Contact Support"
   },
   "breadcrumb": {
     "invoices": "Invoice Records",
@@ -460,6 +470,6 @@
     "purposeMax": "Purpose cannot exceed 150 characters",
     "statusRequired": "Please select a status first.",
     "revisionReasonRequired": "Reason is required if status is REVISION.",
-    "vendorCodeRequired": "Vendor code is required when status is APPROVED."
+    "vendorCodeRequired": "Vendor code or name is required when status is APPROVED."
   }
 }

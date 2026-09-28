@@ -1,16 +1,12 @@
-import { useTranslation } from "react-i18next";
 import AppBreadcrumb from "@/components/breadcrumb/app-breadcrumb";
 import { Footer } from "@/components/footer";
 import { AppSidebar } from "@/components/sidebar/non-vendor/app-sidebar";
-import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { RotateCwIcon } from "lucide-react";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 
 import { useNonVendorAuthStore } from "@/stores/non-vendor-auth.store";
@@ -32,8 +28,6 @@ export const Route = createFileRoute("/_non-vendor")({
 });
 
 function RouteComponent() {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -46,12 +40,6 @@ function RouteComponent() {
             </div>
             <div className="flex items-center gap-2">
               <LanguageSwitcher variant="ghost" size="sm" />
-              {/* <Button
-                variant="ghost"
-                onClick={() => queryClient.invalidateQueries()}
-              >
-                <RotateCwIcon /> {t("common.refresh")}
-              </Button> */}
             </div>
           </div>
         </header>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircleIcon, Loader2Icon, InfoIcon } from "lucide-react";
-import { DOCUMENT_STATUS, DOCUMENT_STATUS_COLOR } from "@/enums/document-status.enum";
+import {
+  DOCUMENT_STATUS,
+  DOCUMENT_STATUS_COLOR,
+} from "@/enums/document-status.enum";
 import { cn } from "@/lib/utils";
 import {
   updateAdminPortalUserStatus,
@@ -35,13 +37,22 @@ import { adminKeys } from "@/queries/admin.queries";
 import { useTranslation } from "react-i18next";
 import type { AxiosError } from "axios";
 import getErrorMessage from "@/utils/error-message";
+import { vendorQueries } from "@/queries/vendor.queries";
+import type { Vendor } from "@/types/vendor.type";
+import { VendorSearch } from "@/components/vendor/vendor-search";
 
 // Admin-selectable statuses
 const ALLOWED_STATUS = [
   DOCUMENT_STATUS.PENDING,
   DOCUMENT_STATUS.APPROVED,
-  DOCUMENT_STATUS.REVISION
+  DOCUMENT_STATUS.REVISION,
 ] as const;
+
+// Translation keys for the vendor validation hint shown when APPROVED is selected
+type VendorHintKey =
+  | "validation.vendorCodeRequired"
+  | "admin.searchFirstHint"
+  | "admin.selectVendorHint";
 
 interface UpdateStatusDialogProps {
   user: NonVendorUser | null; // null = dialog closed
@@ -55,16 +66,23 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
   // Local form state
   const [selectedStatus, setSelectedStatus] = React.useState<string>("");
   const [reason, setReason] = React.useState<string>("");
-  const [vendorCode, setVendorCode] = React.useState<string>("");
   const [validationError, setValidationError] = React.useState<string>("");
+  const [vendorKeyword, setVendorKeyword] = React.useState<string>("");
+  const [submittedVendorKeyword, setSubmittedVendorKeyword] =
+    React.useState<string>("");
+  const [selectedVendor, setSelectedVendor] = React.useState<Vendor | null>(
+    null,
+  );
 
   // Reset form every time the dialog is opened for a different user
   React.useEffect(() => {
     if (user) {
       setSelectedStatus("");
       setReason("");
-      setVendorCode("");
       setValidationError("");
+      setVendorKeyword("");
+      setSubmittedVendorKeyword("");
+      setSelectedVendor(null);
     }
   }, [user]);
 
@@ -91,6 +109,34 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
   const isApprovedStatus = selectedStatus === DOCUMENT_STATUS.APPROVED;
   const isApproved = user?.status === DOCUMENT_STATUS.APPROVED;
 
+  // Vendor search query (triggered only when submittedVendorKeyword is not empty)
+  const vendorSearchQuery = useQuery(
+    vendorQueries.search(submittedVendorKeyword),
+  );
+  const vendorResults = vendorSearchQuery.data?.data ?? [];
+  const isVendorSearching = vendorSearchQuery.isFetching;
+  const hasVendorSearched = submittedVendorKeyword.trim().length > 0;
+  const vendorErrorMessage = vendorSearchQuery.isError
+    ? getErrorMessage(vendorSearchQuery.error as AxiosError)
+    : null;
+
+  // Vendor validation hint (and whether submit must be blocked) when APPROVED:
+  //  - empty keyword                            -> "validation.vendorCodeRequired"
+  //  - filled but not searched yet              -> "admin.searchFirstHint"
+  //  - searched with results, none selected     -> "admin.selectVendorHint"
+  //  - searched and no results (not found)      -> allowed to submit
+  let vendorHintKey: VendorHintKey | null = null;
+  if (isApprovedStatus) {
+    if (!vendorKeyword.trim()) {
+      vendorHintKey = "validation.vendorCodeRequired";
+    } else if (!hasVendorSearched) {
+      vendorHintKey = "admin.searchFirstHint";
+    } else if (vendorResults.length > 0 && !selectedVendor) {
+      vendorHintKey = "admin.selectVendorHint";
+    }
+  }
+  const vendorBlocked = vendorHintKey !== null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError("");
@@ -107,9 +153,9 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
       return;
     }
 
-    // Validation: vendorCode is required if APPROVED
-    if (isApprovedStatus && !vendorCode.trim()) {
-      setValidationError(t("validation.vendorCodeRequired"));
+    // Validation: block submit when vendor selection is incomplete
+    if (vendorHintKey) {
+      setValidationError(t(vendorHintKey));
       return;
     }
 
@@ -120,7 +166,7 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
       body: {
         status: selectedStatus,
         reason: isRevision ? reason.trim() : undefined,
-        vendorCode: isApprovedStatus ? vendorCode.trim() : undefined,
+        vendorCode: isApprovedStatus ? selectedVendor?.code : undefined,
       },
     });
   };
@@ -129,7 +175,9 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
     <Dialog open={!!user} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold">{t("admin.updateUserStatus")}</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            {t("admin.updateUserStatus")}
+          </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {t("admin.changeUserStatusDesc")}
           </DialogDescription>
@@ -137,21 +185,27 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
 
         {/* User info */}
         {user && (
-          <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t("columns.username")}</span>
-              <span className="font-medium">{user.username}</span>
+          <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1 text-sm min-w-0">
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-muted-foreground shrink-0">
+                {t("columns.username")}
+              </span>
+              <span className="font-medium truncate">{user.username}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 min-w-0">
+              <span className="text-muted-foreground shrink-0">
+                {t("auth.companyName")}
+              </span>
+              <span className="font-medium truncate">{user.companyName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t("auth.companyName")}</span>
-              <span className="font-medium">{user.companyName}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{t("admin.currentStatus")}</span>
+              <span className="text-muted-foreground">
+                {t("admin.currentStatus")}
+              </span>
               {(() => {
-                const colors =
-                  DOCUMENT_STATUS_COLOR[user.status as keyof typeof DOCUMENT_STATUS_COLOR] ||
-                  { bg: "#f3f4f6", text: "#374151" };
+                const colors = DOCUMENT_STATUS_COLOR[
+                  user.status as keyof typeof DOCUMENT_STATUS_COLOR
+                ] || { bg: "#f3f4f6", text: "#374151" };
                 return (
                   <Badge
                     style={{ backgroundColor: colors.bg, color: colors.text }}
@@ -174,7 +228,7 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
           {/* Select Status */}
           <div className="space-y-2">
             <Label htmlFor="status-select" className="font-medium">
@@ -186,7 +240,11 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
                 setSelectedStatus(val);
                 setValidationError("");
                 if (val !== DOCUMENT_STATUS.REVISION) setReason("");
-                if (val !== DOCUMENT_STATUS.APPROVED) setVendorCode("");
+                if (val !== DOCUMENT_STATUS.APPROVED) {
+                  setVendorKeyword("");
+                  setSubmittedVendorKeyword("");
+                  setSelectedVendor(null);
+                }
               }}
               disabled={isApproved || isPending}
             >
@@ -195,13 +253,18 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
               </SelectTrigger>
               <SelectContent>
                 {ALLOWED_STATUS.map((status) => {
-                  const colors =
-                    DOCUMENT_STATUS_COLOR[status] || { bg: "#f3f4f6", text: "#374151" };
+                  const colors = DOCUMENT_STATUS_COLOR[status] || {
+                    bg: "#f3f4f6",
+                    text: "#374151",
+                  };
                   return (
                     <SelectItem key={status} value={status}>
                       <span
                         className="font-semibold text-xs px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: colors.bg, color: colors.text }}
+                        style={{
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                        }}
                       >
                         {status}
                       </span>
@@ -212,28 +275,36 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
             </Select>
           </div>
 
-          {/* Vendor Code Input & Notice (only shown if APPROVED is selected) */}
+          {/* Vendor search & notice (only shown if APPROVED is selected) */}
           {isApprovedStatus && (
             <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="space-y-2">
-                <Label htmlFor="vendor-code-input" className="font-medium">
-                  {t("admin.vendorCode")} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="vendor-code-input"
-                  placeholder={t("admin.vendorCodePlaceholder")}
-                  value={vendorCode}
-                  onChange={(e) => {
-                    setVendorCode(e.target.value);
-                    setValidationError("");
-                  }}
-                  disabled={isPending}
-                />
-              </div>
+              <VendorSearch
+                keyword={vendorKeyword}
+                onKeywordChange={(value) => {
+                  setVendorKeyword(value);
+                  setSelectedVendor(null);
+                }}
+                onSearch={() => setSubmittedVendorKeyword(vendorKeyword.trim())}
+                isSearching={isVendorSearching}
+                results={vendorResults}
+                hasSearched={hasVendorSearched}
+                errorMessage={vendorErrorMessage}
+                selectedVendor={selectedVendor}
+                onSelect={(vendor) => setSelectedVendor(vendor)}
+                onClear={() => setSelectedVendor(null)}
+                disabled={isPending}
+              />
+
+              {vendorHintKey && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200/80 px-3 py-2 text-xs text-amber-800 leading-relaxed">
+                  <InfoIcon className="size-4 mt-0.5 shrink-0 text-amber-600" />
+                  <p>{t(vendorHintKey)}</p>
+                </div>
+              )}
 
               <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 border border-blue-200/80 p-3 text-xs text-blue-900 leading-relaxed">
                 <InfoIcon className="size-4 mt-0.5 shrink-0 text-blue-600" />
-                <p>{t("admin.approveNote")}</p>
+                <p>{t("admin.vendorSearchNote")}</p>
               </div>
             </div>
           )}
@@ -242,7 +313,8 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
           {isRevision && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
               <Label htmlFor="reason-input" className="font-medium">
-                {t("invoice.revisionReason")} <span className="text-destructive">*</span>
+                {t("invoice.revisionReason")}{" "}
+                <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="reason-input"
@@ -279,10 +351,12 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
             </Button>
             <Button
               type="submit"
-              disabled={isApproved || isPending || !selectedStatus}
+              disabled={
+                isApproved || isPending || !selectedStatus || vendorBlocked
+              }
               className={cn(
                 "flex-1 sm:flex-none bg-main hover:bg-main/90",
-                "transition-all active:scale-95"
+                "transition-all active:scale-95",
               )}
             >
               {isPending ? (
@@ -300,4 +374,3 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
     </Dialog>
   );
 }
-

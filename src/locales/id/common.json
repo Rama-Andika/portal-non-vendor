@@ -362,13 +362,18 @@
     "dashboardTitle": "Dashboard Admin",
     "dashboardWelcome": "Selamat datang di panel administrasi.",
     "cannotChangeApprovedUser": "Status pengguna yang sudah APPROVED tidak dapat diubah.",
-    "approveNote": "Catatan: Menyetujui status ini akan memperbarui data vendor di backoffice secara otomatis dengan informasi pengguna ini (seperti Nama, Nomor Telepon, Rekening Bank, dll.).",
     "onlyWaitingApprovalCanBeProcessed": "Hanya pengajuan dengan status WAITING_APPROVAL yang dapat diproses.",
     "changeUserStatusDesc": "Ubah status pendaftaran untuk pengguna ini.",
     "newStatus": "Status Baru",
     "selectStatusPlaceholder": "Pilih status...",
-    "vendorCode": "Kode Vendor",
-    "vendorCodePlaceholder": "Masukkan kode vendor...",
+    "vendorCode": "Kode Vendor / Nama Vendor",
+    "vendorCodePlaceholder": "Masukkan kode vendor atau nama vendor...",
+    "pkpYes": "PKP",
+    "pkpNo": "Non-PKP",
+    "selectVendorHint": "Silakan pilih salah satu vendor dari hasil pencarian sebelum menyimpan.",
+    "searchFirstHint": "Silakan klik Cari terlebih dahulu, lalu pilih vendor.",
+    "vendorSearchNote": "Cari vendor berdasarkan kode atau nama, lalu pilih salah satu. Jika vendor tidak ditemukan, Anda tetap dapat menyimpan dan vendor baru akan dibuat otomatis dari data pengguna.",
+    "vendorNotFoundShort": "Tidak ada vendor ditemukan.",
     "revisionReasonPlaceholder": "Masukkan alasan revisi dengan jelas...",
     "viewDetails": "Lihat Detail",
     "updateStatus": "Ubah Status",
@@ -407,6 +412,11 @@
     "appErrorTitle": "Aplikasi Terhenti",
     "appErrorDesc": "Terjadi kesalahan teknis saat melanjutkan sesi aplikasi. Silakan muat ulang untuk kembali.",
     "reloadApp": "Muat Ulang Aplikasi"
+  },
+  "notFound": {
+    "title": "Halaman Tidak Ditemukan",
+    "desc": "Maaf, halaman yang Anda cari tidak ada atau telah dipindahkan.",
+    "contactSupport": "Hubungi Dukungan"
   },
   "breadcrumb": {
     "invoices": "Pengajuan Invoice",
@@ -460,6 +470,6 @@
     "purposeMax": "Tujuan tidak boleh melebihi 150 karakter",
     "statusRequired": "Silakan pilih status terlebih dahulu.",
     "revisionReasonRequired": "Alasan wajib diisi jika status REVISION.",
-    "vendorCodeRequired": "Kode vendor wajib diisi jika status APPROVED."
+    "vendorCodeRequired": "Kode vendor atau nama wajib diisi jika status APPROVED."
   }
 }
