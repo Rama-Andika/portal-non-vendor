@@ -19,6 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
 import { AlertCircleIcon, Loader2Icon, InfoIcon } from "lucide-react";
 import {
   DOCUMENT_STATUS,
@@ -52,7 +56,10 @@ const ALLOWED_STATUS = [
 type VendorHintKey =
   | "validation.vendorCodeRequired"
   | "admin.searchFirstHint"
-  | "admin.selectVendorHint";
+  | "admin.selectVendorHint"
+  | "admin.selectPkpHint"
+  | "admin.vendorNotFoundHint"
+  | "admin.vendorSearchErrorHint";
 
 interface UpdateStatusDialogProps {
   user: NonVendorUser | null; // null = dialog closed
@@ -73,6 +80,13 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
   const [selectedVendor, setSelectedVendor] = React.useState<Vendor | null>(
     null,
   );
+  // Pilihan PKP/Non-PKP untuk vendor baru (dipakai di mode "Buat vendor baru")
+  const [createPkp, setCreatePkp] = React.useState<0 | 1 | null>(null);
+  // Mode vendor saat APPROVED: "existing" = pakai vendor yang sudah ada,
+  // "create" = buat vendor baru.
+  const [vendorMode, setVendorMode] = React.useState<"existing" | "create">(
+    "existing",
+  );
 
   // Reset form every time the dialog is opened for a different user
   React.useEffect(() => {
@@ -83,6 +97,8 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
       setVendorKeyword("");
       setSubmittedVendorKeyword("");
       setSelectedVendor(null);
+      setCreatePkp(null);
+      setVendorMode("existing");
     }
   }, [user]);
 
@@ -121,18 +137,31 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
     : null;
 
   // Vendor validation hint (and whether submit must be blocked) when APPROVED:
-  //  - empty keyword                            -> "validation.vendorCodeRequired"
-  //  - filled but not searched yet              -> "admin.searchFirstHint"
-  //  - searched with results, none selected     -> "admin.selectVendorHint"
-  //  - searched and no results (not found)      -> allowed to submit
+  //  - mode "create" tanpa pilihan PKP            -> "admin.selectPkpHint"
+  //  - mode "existing", keyword kosong            -> "validation.vendorCodeRequired"
+  //  - mode "existing", belum klik Cari           -> "admin.searchFirstHint"
+  //  - mode "existing", ada hasil belum pilih     -> "admin.selectVendorHint"
+  //  - mode "existing", pencarian error           -> "admin.vendorSearchErrorHint"
+  //  - mode "existing", tidak ada hasil           -> "admin.vendorNotFoundHint"
+  //  - selain itu                                 -> boleh submit
   let vendorHintKey: VendorHintKey | null = null;
   if (isApprovedStatus) {
-    if (!vendorKeyword.trim()) {
-      vendorHintKey = "validation.vendorCodeRequired";
-    } else if (!hasVendorSearched) {
-      vendorHintKey = "admin.searchFirstHint";
-    } else if (vendorResults.length > 0 && !selectedVendor) {
-      vendorHintKey = "admin.selectVendorHint";
+    if (vendorMode === "create") {
+      if (createPkp === null) {
+        vendorHintKey = "admin.selectPkpHint";
+      }
+    } else {
+      if (!vendorKeyword.trim()) {
+        vendorHintKey = "validation.vendorCodeRequired";
+      } else if (!hasVendorSearched) {
+        vendorHintKey = "admin.searchFirstHint";
+      } else if (vendorResults.length > 0 && !selectedVendor) {
+        vendorHintKey = "admin.selectVendorHint";
+      } else if (vendorErrorMessage) {
+        vendorHintKey = "admin.vendorSearchErrorHint";
+      } else if (!selectedVendor) {
+        vendorHintKey = "admin.vendorNotFoundHint";
+      }
     }
   }
   const vendorBlocked = vendorHintKey !== null;
@@ -166,7 +195,11 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
       body: {
         status: selectedStatus,
         reason: isRevision ? reason.trim() : undefined,
-        vendorCode: isApprovedStatus ? selectedVendor?.code : undefined,
+        ...(isApprovedStatus
+          ? vendorMode === "create"
+            ? { vendorId: "", isPkp: createPkp ?? 0 }
+            : { vendorId: selectedVendor?.vendorId }
+          : {}),
       },
     });
   };
@@ -244,6 +277,8 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
                   setVendorKeyword("");
                   setSubmittedVendorKeyword("");
                   setSelectedVendor(null);
+                  setCreatePkp(null);
+                  setVendorMode("existing");
                 }
               }}
               disabled={isApproved || isPending}
@@ -275,25 +310,93 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
             </Select>
           </div>
 
-          {/* Vendor search & notice (only shown if APPROVED is selected) */}
+          {/* Vendor (only shown if APPROVED is selected) */}
           {isApprovedStatus && (
             <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-              <VendorSearch
-                keyword={vendorKeyword}
-                onKeywordChange={(value) => {
-                  setVendorKeyword(value);
-                  setSelectedVendor(null);
-                }}
-                onSearch={() => setSubmittedVendorKeyword(vendorKeyword.trim())}
-                isSearching={isVendorSearching}
-                results={vendorResults}
-                hasSearched={hasVendorSearched}
-                errorMessage={vendorErrorMessage}
-                selectedVendor={selectedVendor}
-                onSelect={(vendor) => setSelectedVendor(vendor)}
-                onClear={() => setSelectedVendor(null)}
-                disabled={isPending}
-              />
+              {/* Mode selector */}
+              <div className="space-y-2">
+                <Label className="font-medium">
+                  {t("admin.vendorModeLabel")}
+                </Label>
+                <RadioGroup
+                  value={vendorMode}
+                  onValueChange={(val) =>
+                    setVendorMode(val === "create" ? "create" : "existing")
+                  }
+                  disabled={isPending}
+                  className="gap-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value="existing"
+                      id="vendor-mode-existing"
+                    />
+                    <Label
+                      htmlFor="vendor-mode-existing"
+                      className="font-normal cursor-pointer"
+                    >
+                      {t("admin.vendorModeExisting")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="create" id="vendor-mode-create" />
+                    <Label
+                      htmlFor="vendor-mode-create"
+                      className="font-normal cursor-pointer"
+                    >
+                      {t("admin.vendorModeCreate")}
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Mode existing: pencarian vendor */}
+              {vendorMode === "existing" ? (
+                <VendorSearch
+                  keyword={vendorKeyword}
+                  onKeywordChange={(value) => {
+                    setVendorKeyword(value);
+                    setSelectedVendor(null);
+                  }}
+                  onSearch={() =>
+                    setSubmittedVendorKeyword(vendorKeyword.trim())
+                  }
+                  isSearching={isVendorSearching}
+                  results={vendorResults}
+                  hasSearched={hasVendorSearched}
+                  errorMessage={vendorErrorMessage}
+                  selectedVendor={selectedVendor}
+                  onSelect={(vendor) => setSelectedVendor(vendor)}
+                  onClear={() => setSelectedVendor(null)}
+                  disabled={isPending}
+                />
+              ) : (
+                /* Mode create: pilihan PKP/Non-PKP */
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <Label className="font-medium">
+                    {t("admin.vendorPkpLabel")}{" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={createPkp === null ? "" : String(createPkp)}
+                    onValueChange={(val) => {
+                      setCreatePkp(val === "1" ? 1 : 0);
+                      setValidationError("");
+                    }}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue
+                        placeholder={t("admin.selectPkpPlaceholder")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">{t("admin.pkpYes")}</SelectItem>
+                      <SelectItem value="0">{t("admin.pkpNo")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {vendorHintKey && (
                 <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200/80 px-3 py-2 text-xs text-amber-800 leading-relaxed">

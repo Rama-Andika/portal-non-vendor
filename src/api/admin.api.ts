@@ -59,7 +59,8 @@ export const getAdminPortalUsers = async (
 export type UpdateUserStatusBody = {
   status: string;
   reason?: string;
-  vendorCode?: string;
+  vendorId?: string;
+  isPkp?: number;
 };
 
 /**
