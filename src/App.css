@@ -1,0 +1,48 @@
+/* 1. Box sizing konsisten */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+/* 2. Root setup */
+html {
+  height: 100%;
+  scroll-behavior: smooth;
+
+  /* font scaling yang konsisten */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 3. Body default */
+body {
+  min-height: 100%;
+  margin: 0;
+
+  /* Prevent horizontal scroll bug */
+  overflow-x: hidden;
+}
+
+@media screen {
+  #print-qr-code {
+    display: none;
+  }
+  #print-invoice {
+    display: none;
+  }
+}
+
+@media print {
+  #print-qr-code {
+    display: block;
+  }
+  #print-invoice {
+    display: block;
+  }
+}
+
+#print-invoice {
+  letter-spacing: -0.5px; /* Thermal printer cenderung melebarkan karakter */
+  line-height: 1.2;
+  -webkit-font-smoothing: none; /* Matikan penghalusan font agar bitmap tajam */
+}

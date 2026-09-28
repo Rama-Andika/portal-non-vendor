@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      window.addEventListener(
+        "error",
+        function (e) {
+          // Jika script atau link CSS gagal dimuat (404)
+          if (e.target.tagName === "SCRIPT" || e.target.tagName === "LINK") {
+            console.log("Asset load failed, reloading app...");
+            window.location.reload();
+          }
+        },
+        true,
+      );
+    </script>
+
+    <meta charset="UTF-8" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/icons/icon-48.webp" /> -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>portal non vendor</title>
+  </head>
+  <body>
+    <div id="root" class="font-poppins"></div>
+    <script type="module" src="src/main.tsx"></script>
+  </body>
+</html>
