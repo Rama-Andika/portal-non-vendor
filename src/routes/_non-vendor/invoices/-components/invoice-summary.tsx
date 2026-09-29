@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ interface InvoiceSummaryProps {
   onPphPercentChange: (val: number) => void;
   onPphAmountChange: (val: number) => void;
   isReadOnly?: boolean;
+  children?: ReactNode;
 }
 
 export function InvoiceSummary({
@@ -30,6 +32,7 @@ export function InvoiceSummary({
   onPphPercentChange,
   onPphAmountChange,
   isReadOnly,
+  children,
 }: InvoiceSummaryProps) {
   const { t } = useTranslation();
 
@@ -124,9 +127,11 @@ export function InvoiceSummary({
               </div>
             </div>
           </div>
-          
+
         </div>
       </div>
+
+      {children}
     </div>
   );
 }

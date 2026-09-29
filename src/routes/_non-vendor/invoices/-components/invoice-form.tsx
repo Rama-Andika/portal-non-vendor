@@ -102,7 +102,7 @@ export function InvoiceForm({
     name: "items",
   });
 
-  const watchedItems = useWatch({ control, name: "items" }) || [];
+  const watchedItems = useWatch({ control, name: "items" });
   const vatPercent = useWatch({ control, name: "vatPercent" }) || 0;
   const vatAmount = useWatch({ control, name: "vatAmount" }) || 0;
   const pphPercent = useWatch({ control, name: "pphPercent" }) || 0;
@@ -140,7 +140,10 @@ export function InvoiceForm({
   const [tempItem, setTempItem] = useImmer<Partial<InvoiceItemValues>>({});
 
   const subTotal = useMemo(() => {
-    return watchedItems.reduce((acc, item) => acc + (item.subTotal || 0), 0);
+    return (watchedItems || []).reduce(
+      (acc, item) => acc + (item.subTotal || 0),
+      0,
+    );
   }, [watchedItems]);
 
   useEffect(() => {
@@ -283,16 +286,18 @@ export function InvoiceForm({
         }}
         onPphAmountChange={(val) => setValue("pphAmount", val)}
         isReadOnly={isReadOnly}
-      />
+      >
 
-      {/* ── Attachment Section ── */}
-      {mode !== "create" && (
-        <InvoiceAttachments
-          requestId={requestId}
-          isReadOnly={isReadOnly}
-          existingFiles={existingFiles}
-        />
-      )}
+        {/* ── Attachment Section (inside Total Invoice, edit/detail only) ── */}
+        {mode !== "create" && (
+          <InvoiceAttachments
+            key={`${existingFiles?.invoice_path ?? ""}|${existingFiles?.faktur_pajak_path ?? ""}|${existingFiles?.approval_doc_path ?? ""}`}
+            requestId={requestId}
+            isReadOnly={isReadOnly}
+            existingFiles={existingFiles}
+          />
+        )}
+      </InvoiceSummary>
 
       {/* ── Action Buttons (at the very bottom of the page) ── */}
       {!isReadOnly && (

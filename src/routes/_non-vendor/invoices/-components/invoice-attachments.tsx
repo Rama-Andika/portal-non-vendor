@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Paperclip,
@@ -59,22 +59,6 @@ export function InvoiceAttachments({
     }));
   };
 
-  useEffect(() => {
-    if (existingFiles?.invoice_path) {
-      updateDoc("invoice_path", { file: null, status: "idle" });
-    }
-    if (existingFiles?.faktur_pajak_path) {
-      updateDoc("faktur_pajak_path", { file: null, status: "idle" });
-    }
-    if (existingFiles?.approval_doc_path) {
-      updateDoc("approval_doc_path", { file: null, status: "idle" });
-    }
-  }, [
-    existingFiles?.invoice_path,
-    existingFiles?.faktur_pajak_path,
-    existingFiles?.approval_doc_path,
-  ]);
-
   const handleFileSelect = (type: keyof typeof docs, file: File) => {
     if (file.type !== "application/pdf") {
       toast(<ToastError message={t("settlement.onlyPdfAllowed")} />);
@@ -98,7 +82,7 @@ export function InvoiceAttachments({
     }
 
     const pendingUploads = Object.entries(docs)
-      .filter(([_, data]) => data.file !== null && data.status !== "success")
+      .filter(([, data]) => data.file !== null && data.status !== "success")
       .map(([type, data]) => ({ type: type as keyof typeof docs, file: data.file as File }));
 
     if (pendingUploads.length === 0) {
@@ -114,7 +98,7 @@ export function InvoiceAttachments({
         updateDoc(upload.type, { status: "uploading" });
         await uploadFile({ id: requestId, type: upload.type, file: upload.file });
         updateDoc(upload.type, { status: "success" });
-      } catch (error) {
+      } catch {
         updateDoc(upload.type, { status: "error" });
         allSuccess = false;
       }
@@ -137,7 +121,7 @@ export function InvoiceAttachments({
       window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       toast.dismiss("preview-loading");
-    } catch (error) {
+    } catch {
       toast.dismiss("preview-loading");
       toast(<ToastError message={t("admin.failedLoadDocumentPreview")} />);
     }
@@ -148,13 +132,13 @@ export function InvoiceAttachments({
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-6 md:p-8 shadow-sm space-y-8 overflow-hidden">
+    <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-5">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-main/10 flex items-center justify-center text-main">
-            <Paperclip className="w-5 h-5" />
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-main/10 flex items-center justify-center text-main">
+            <Paperclip className="w-4 h-4" />
           </div>
-          <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+          <h3 className="font-semibold text-base text-slate-800 dark:text-slate-100 uppercase tracking-tight">
             {t("common.attachments")}
           </h3>
         </div>
@@ -176,7 +160,7 @@ export function InvoiceAttachments({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FileDropzoneItem
           label={t("invoice.attachmentInvoice")}
           description={t("invoice.attachmentInvoiceDesc")}
@@ -231,6 +215,7 @@ function FileDropzoneItem({
 }: FileDropzoneItemProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -238,6 +223,29 @@ function FileDropzoneItem({
       onSelect(selectedFile);
     }
     e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      onSelect(droppedFile);
+    }
   };
 
   return (
@@ -325,11 +333,22 @@ function FileDropzoneItem({
         !isReadOnly && (
           <div
             onClick={() => inputRef.current?.click()}
-            className="w-full border-2 border-dashed rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer border-slate-200 hover:border-main hover:bg-main/5 transition-all group duration-200"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={cn(
+              "w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-1.5 cursor-pointer transition-all group duration-200",
+              isDragging
+                ? "border-main bg-main/10"
+                : "border-slate-200 hover:border-main hover:bg-main/5"
+            )}
           >
-            <UploadCloud className="w-6 h-6 text-slate-300 group-hover:text-main" />
-            <p className="text-xs font-semibold text-slate-500 group-hover:text-main">
+            <UploadCloud className="w-5 h-5 text-slate-300 group-hover:text-main pointer-events-none" />
+            <p className="text-[11px] font-semibold text-slate-500 group-hover:text-main pointer-events-none">
               {t("common.addDocument")}
+            </p>
+            <p className="text-[10px] text-slate-400 text-center pointer-events-none">
+              {t("common.dragDropHint")}
             </p>
           </div>
         )
