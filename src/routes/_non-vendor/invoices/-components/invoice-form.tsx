@@ -233,7 +233,9 @@ export function InvoiceForm({
           register={register}
           errors={errors}
           control={control}
+          setValue={setValue}
           isReadOnly={isReadOnly}
+          showBankSelector={mode === "create"}
         />
       </div>
 

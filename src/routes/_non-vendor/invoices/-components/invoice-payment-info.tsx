@@ -1,9 +1,17 @@
-import type { UseFormRegister, FieldErrors, Control } from "react-hook-form";
+import type {
+  UseFormRegister,
+  UseFormSetValue,
+  FieldErrors,
+  Control,
+} from "react-hook-form";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Banknote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import FieldError from "@/components/field-error";
+import SelectReact from "@/components/ui/SelectReact";
+import { useNonVendorAuthStore } from "@/stores/non-vendor-auth.store";
+import type { BankItem } from "@/types/bank.type";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +19,68 @@ interface InvoicePaymentInfoProps {
   register: UseFormRegister<InvoiceFormValues>;
   errors: FieldErrors<InvoiceFormValues>;
   control: Control<InvoiceFormValues>;
+  setValue: UseFormSetValue<InvoiceFormValues>;
   isReadOnly?: boolean;
+  showBankSelector?: boolean;
 }
 
-export function InvoicePaymentInfo({ register, errors, control, isReadOnly }: InvoicePaymentInfoProps) {
+type BankSelectOption = {
+  value: number;
+  label: string;
+  isPrimary: boolean;
+  bankData: BankItem;
+};
+
+export function InvoicePaymentInfo({
+  register,
+  errors,
+  control,
+  setValue,
+  isReadOnly,
+  showBankSelector,
+}: InvoicePaymentInfoProps) {
   const { t } = useTranslation();
+
+  // Get the user's bank data from the store
+  const { user } = useNonVendorAuthStore();
+  const banks: BankItem[] = user?.banks ?? [];
+
+  // Sort banks: primary (isPrimary === 1) goes to the top.
+  // Use [...banks] so the original array in the store is NOT mutated.
+  const sortedBanks: BankItem[] = [...banks].sort((a, b) => {
+    const aPrimary = Number(a.isPrimary) === 1 ? 1 : 0;
+    const bPrimary = Number(b.isPrimary) === 1 ? 1 : 0;
+    return bPrimary - aPrimary; // 1 (primary) first, 0 (non-primary) last
+  });
+
+  // Convert the BankItem array into options for the SelectReact dropdown
+  const bankOptions: BankSelectOption[] = sortedBanks.map((bank, index) => ({
+    value: index,
+    label: `${bank.bankName} - ${bank.accountNumber} (${bank.beneficiaryName})`,
+    isPrimary: Number(bank.isPrimary) === 1,
+    bankData: bank,
+  }));
+
+  // Default option for the dropdown = the first bank after sorting.
+  // Since it's already sorted, index 0 is the primary bank (or the first bank
+  // if none is primary). This is consistent with the auto-fill in new.tsx.
+  const defaultBankOption: BankSelectOption | null = bankOptions[0] ?? null;
+
+  // Handler for when the user selects a bank from the dropdown
+  const handleBankSelect = (selectedOption: BankSelectOption | null) => {
+    if (!selectedOption) return; // If the user clears the selection, do nothing
+
+    const bank = selectedOption.bankData;
+
+    // Fill all form fields with the selected bank's data.
+    // NOTE the different field name mappings!
+    setValue("beneficiaryName", bank.beneficiaryName, { shouldDirty: true });
+    setValue("bankName", bank.bankName, { shouldDirty: true });
+    setValue("accountNo", bank.accountNumber, { shouldDirty: true });
+    setValue("bankBranch", bank.branch, { shouldDirty: true });
+    setValue("swiftCode", bank.swiftCode || "", { shouldDirty: true });
+  };
+
   const watchedBeneficiaryName = useWatch({ control, name: "beneficiaryName" }) as string;
   const watchedBankName = useWatch({ control, name: "bankName" }) as string;
   const watchedAccountNo = useWatch({ control, name: "accountNo" }) as string;
@@ -32,6 +97,42 @@ export function InvoicePaymentInfo({ register, errors, control, isReadOnly }: In
           {t("invoice.paymentDetails")}
         </h3>
       </div>
+
+      {/* ── Bank Selector Dropdown (only shown in create mode) ── */}
+      {showBankSelector && banks.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">
+            {t("invoice.selectBank")}
+          </label>
+          <SelectReact
+            name="bankSelector"
+            placeholder={t("invoice.selectBankPlaceholder")}
+            options={bankOptions}
+            defaultValue={defaultBankOption}
+            formatOptionLabel={(option) => {
+              const bankOption = option as unknown as BankSelectOption;
+              return (
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="truncate">{bankOption.label}</span>
+                  {bankOption.isPrimary && (
+                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-main bg-main/10 rounded px-1.5 py-0.5">
+                      {t("invoice.primaryBankLabel")}
+                    </span>
+                  )}
+                </div>
+              );
+            }}
+            onChange={(option) =>
+              handleBankSelect(option as unknown as BankSelectOption | null)
+            }
+            isClearable
+            className="h-12 rounded-xl bg-slate-50/50 border-slate-200/60 focus:bg-white transition-all"
+          />
+          <p className="text-[10px] text-slate-400 ml-1 mt-1">
+            {t("invoice.selectBankHint")}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
         <div className="space-y-1.5 sm:col-span-2">
