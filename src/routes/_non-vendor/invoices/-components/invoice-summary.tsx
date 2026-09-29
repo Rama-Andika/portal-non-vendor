@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Calculator, Save, Loader2 } from "lucide-react";
+import { Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { formatNumberWithDecimals } from "@/utils/format-number";
 import { toValidNumber } from "@/utils/to-valid-number";
 
@@ -17,9 +16,6 @@ interface InvoiceSummaryProps {
   onPphPercentChange: (val: number) => void;
   onPphAmountChange: (val: number) => void;
   isReadOnly?: boolean;
-  isSubmitting?: boolean;
-  onStatusSubmit?: (status: "DRAFT" | "WAITING_APPROVAL") => void;
-  mode?: "create" | "edit" | "view";
 }
 
 export function InvoiceSummary({
@@ -34,9 +30,6 @@ export function InvoiceSummary({
   onPphPercentChange,
   onPphAmountChange,
   isReadOnly,
-  isSubmitting,
-  onStatusSubmit,
-  mode,
 }: InvoiceSummaryProps) {
   const { t } = useTranslation();
 
@@ -132,38 +125,6 @@ export function InvoiceSummary({
             </div>
           </div>
           
-          {!isReadOnly && (
-            <div className="flex flex-col gap-3">
-              <Button 
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => onStatusSubmit?.("DRAFT")}
-                className="w-full h-12 rounded-xl text-sm font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:shadow-md transition-all active:scale-95 group"
-              >
-                <Save className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                {t("common.saveAsDraft")}
-              </Button>
-              {mode !== "create" && (
-                <Button 
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => onStatusSubmit?.("WAITING_APPROVAL")}
-                  className="w-full bg-main hover:bg-main/90 text-white h-14 rounded-xl text-md font-bold shadow-xl shadow-main/20 transition-all hover:-translate-y-0.5 active:scale-95 group overflow-hidden"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    {isSubmitting ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    ) : (
-                      <>
-                        <Calculator className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" /> 
-                        {t("invoice.submitInvoice")}
-                      </>
-                    )}
-                  </span>
-                </Button>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>

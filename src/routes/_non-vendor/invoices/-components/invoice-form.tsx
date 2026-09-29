@@ -3,6 +3,9 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { SubmitHandler, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useImmer } from "use-immer";
+import { useTranslation } from "react-i18next";
+import { Save, Loader2, Calculator } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   invoiceFormSchema,
   type InvoiceFormValues,
@@ -51,6 +54,7 @@ export function InvoiceForm({
   journalNo,
 }: InvoiceFormProps) {
   const isReadOnly = mode === "view";
+  const { t } = useTranslation();
 
   const {
     register,
@@ -213,6 +217,11 @@ export function InvoiceForm({
     onSubmitSuccess?.(data);
   };
 
+  const handleStatusSubmit = (status: "DRAFT" | "WAITING_APPROVAL") => {
+    setValue("status", status);
+    handleSubmit(onSubmit)();
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -274,12 +283,6 @@ export function InvoiceForm({
         }}
         onPphAmountChange={(val) => setValue("pphAmount", val)}
         isReadOnly={isReadOnly}
-        isSubmitting={isSubmitting}
-        onStatusSubmit={(status: "DRAFT" | "WAITING_APPROVAL") => {
-          setValue("status", status);
-          handleSubmit(onSubmit)();
-        }}
-        mode={mode}
       />
 
       {/* ── Attachment Section ── */}
@@ -289,6 +292,41 @@ export function InvoiceForm({
           isReadOnly={isReadOnly}
           existingFiles={existingFiles}
         />
+      )}
+
+      {/* ── Action Buttons (at the very bottom of the page) ── */}
+      {!isReadOnly && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <Button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => handleStatusSubmit("DRAFT")}
+            className="w-full sm:w-auto h-12 px-6 rounded-xl text-sm font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:shadow-md transition-all active:scale-95 group"
+          >
+            <Save className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+            {t("common.saveAsDraft")}
+          </Button>
+
+          {mode !== "create" && (
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => handleStatusSubmit("WAITING_APPROVAL")}
+              className="w-full sm:w-auto bg-main hover:bg-main/90 text-white h-14 px-8 rounded-xl text-md font-bold shadow-xl shadow-main/20 transition-all hover:-translate-y-0.5 active:scale-95 group overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center justify-center">
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <>
+                    <Calculator className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" />
+                    {t("invoice.submitInvoice")}
+                  </>
+                )}
+              </span>
+            </Button>
+          )}
+        </div>
       )}
     </form>
   );
