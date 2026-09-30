@@ -23,11 +23,7 @@ import { SettlementDetailCard } from "@/components/settlement/settlement-detail-
 import { getNonVendorRequestFilePreview } from "@/api/non-vendor.api";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
-import type {
-  RequestType,
-  PaymentType,
-  PortalRequestStatus,
-} from "@/types/portal-request.type";
+import type { PortalRequestStatus } from "@/types/portal-request.type";
 import {
   DOCUMENT_STATUS,
   DOCUMENT_STATUS_COLOR,
@@ -66,6 +62,48 @@ function UpdateInvoicePage() {
   const [pendingData, setPendingData] = useState<InvoiceFormValues | null>(
     null,
   );
+
+  // 5. Mapping respons data ke default values form
+  const defaultValues = useMemo(() => {
+    if (!requestData) return undefined;
+
+    return {
+      departmentId: requestData.departmentId,
+      requestType: requestData.requestType,
+      paymentType: requestData.paymentType,
+      bankName: requestData.bankName,
+      beneficiaryName: requestData.beneficiaryName,
+      accountNo: requestData.accountNo,
+      bankBranch: requestData.bankBranch,
+      swiftCode: requestData.swiftCode || "",
+      purpose: requestData.purpose,
+      status: requestData.status as PortalRequestStatus,
+      date: requestData.date,
+      vatPercent: requestData.vatPercent,
+      vatAmount: requestData.vatAmount,
+      pphPercent: requestData.pphPercent,
+      pphAmount: requestData.pphAmount,
+      items: requestData.details.map((detail) => ({
+        id: detail.id,
+        description: detail.description,
+        invoiceNumber: detail.invoiceNumber || "",
+        qty: detail.qty || 1,
+        currencyId: detail.currencyId,
+        price: detail.price,
+        rate: detail.rate,
+        subTotal:
+          detail.price * detail.rate +
+          (detail.vatAmount || 0) -
+          (detail.pphAmount || 0),
+        vatPercent: detail.vatPercent || 0,
+        vatAmount: detail.vatAmount || 0,
+        pphPercent: detail.pphPercent || 0,
+        pphAmount: detail.pphAmount || 0,
+        pphType: detail.pphType || "PPH21",
+        filename: detail.filename || null,
+      })),
+    };
+  }, [requestData]);
 
   if (isLoading) {
     return (
@@ -113,8 +151,8 @@ function UpdateInvoicePage() {
     updateRequest(
       {
         departmentId: pendingData.departmentId ?? null,
-        requestType: pendingData.requestType as RequestType,
-        paymentType: pendingData.paymentType as PaymentType,
+        requestType: String(pendingData.requestType),
+        paymentType: String(pendingData.paymentType),
         bankName: pendingData.bankName,
         beneficiaryName: pendingData.beneficiaryName,
         accountNo: pendingData.accountNo,
@@ -143,6 +181,7 @@ function UpdateInvoicePage() {
             vatAmount: item.vatAmount,
             pphPercent: item.pphPercent,
             pphAmount: item.pphAmount,
+            pphType: item.pphType,
           };
         }),
       },
@@ -167,51 +206,10 @@ function UpdateInvoicePage() {
       const blob = await getNonVendorRequestFilePreview(filename);
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
-    } catch (error) {
+    } catch {
       toast.error(t("admin.failedLoadDocumentPreview"));
     }
   };
-
-  // 5. Mapping respons data ke default values form
-  const defaultValues = useMemo(() => {
-    if (!requestData) return undefined;
-
-    return {
-      departmentId: requestData.departmentId,
-      requestType: requestData.requestType,
-      paymentType: requestData.paymentType,
-      bankName: requestData.bankName,
-      beneficiaryName: requestData.beneficiaryName,
-      accountNo: requestData.accountNo,
-      bankBranch: requestData.bankBranch,
-      swiftCode: requestData.swiftCode || "",
-      purpose: requestData.purpose,
-      status: requestData.status as PortalRequestStatus,
-      date: requestData.date,
-      vatPercent: requestData.vatPercent,
-      vatAmount: requestData.vatAmount,
-      pphPercent: requestData.pphPercent,
-      pphAmount: requestData.pphAmount,
-      items: requestData.details.map((detail) => ({
-        id: detail.id,
-        description: detail.description,
-        invoiceNumber: detail.invoiceNumber || "",
-        qty: detail.qty || 1,
-        currencyId: detail.currencyId,
-        price: detail.price,
-        rate: detail.rate,
-        subTotal:
-          detail.price * detail.rate +
-          (detail.vatAmount || 0) -
-          (detail.pphAmount || 0),
-        vatPercent: detail.vatPercent || 0,
-        vatAmount: detail.vatAmount || 0,
-        pphPercent: detail.pphPercent || 0,
-        pphAmount: detail.pphAmount || 0,
-        filename: detail.filename || null,
-      })),
-    };
-  }, [requestData]);
 
   const isRejected = requestData.status === DOCUMENT_STATUS.REJECTED;
   const isCanceled = requestData.status === DOCUMENT_STATUS.CANCELLED;

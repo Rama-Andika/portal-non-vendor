@@ -128,8 +128,8 @@ export function UpdateStatusDialog({
         if (currentReq) {
           await updatePortalRequest(id, {
             departmentId: selectedDepartmentId ?? null,
-            requestType: selectedRequestType ?? 0,
-            paymentType: currentReq.paymentType,
+            requestType: String(selectedRequestType ?? 0),
+            paymentType: String(currentReq.paymentType),
             bankName: currentReq.bankName,
             beneficiaryName: currentReq.beneficiaryName,
             accountNo: currentReq.accountNo,
@@ -154,6 +154,7 @@ export function UpdateStatusDialog({
               vatAmount: d.vatAmount || 0,
               pphPercent: d.pphPercent || 0,
               pphAmount: d.pphAmount || 0,
+              pphType: d.pphType,
             })),
           });
         }

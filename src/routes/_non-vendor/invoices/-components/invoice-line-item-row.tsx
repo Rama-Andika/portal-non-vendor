@@ -15,6 +15,7 @@ import { formatNumberWithDecimals } from "@/utils/format-number";
 import { toValidNumber } from "@/utils/to-valid-number";
 import { cn } from "@/lib/utils";
 import type { Currency } from "@/types/currency.type";
+import type { PphType } from "@/types/portal-request.type";
 import { toast } from "sonner";
 import ToastError from "@/components/toast/toast-error";
 import ToastSuccess from "@/components/toast/toast-success";
@@ -35,6 +36,7 @@ interface InvoiceLineItemRowProps {
   onDelete: () => void;
   onUpdateTemp: (updater: (draft: Partial<InvoiceItemValues>) => void) => void;
   currencies: Currency[];
+  pphTypes: PphType[];
   requestId?: string;
   dbId?: string;
   filename?: string | null;
@@ -52,6 +54,7 @@ export function InvoiceLineItemRow({
   onDelete,
   onUpdateTemp,
   currencies,
+  pphTypes,
   requestId,
   dbId,
   filename,
@@ -118,7 +121,7 @@ export function InvoiceLineItemRow({
       window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       toast.dismiss("preview-loading");
-    } catch (error: unknown) {
+    } catch {
       toast.dismiss("preview-loading");
       toast(<ToastError message={t("admin.failedLoadDocumentPreview")} />);
     } finally {
@@ -142,25 +145,33 @@ export function InvoiceLineItemRow({
     });
   };
 
-  // Sync display states when entering edit mode or when tempItem changes externally
+  // Keep the latest tempItem in a ref so the sync effect below can read it
+  // without depending on every field (depending on them would disrupt typing).
+  const tempItemRef = useRef(tempItem);
+  useEffect(() => {
+    tempItemRef.current = tempItem;
+  }, [tempItem]);
+
+  // Sync display states when entering edit mode or when the item changes
   useEffect(() => {
     if (isEditing) {
-      setDisplayAmount(tempItem.price != null ? String(tempItem.price) : "");
-      setDisplayRate(tempItem.rate != null ? String(tempItem.rate) : "");
+      const latest = tempItemRef.current;
+      setDisplayAmount(latest.price != null ? String(latest.price) : "");
+      setDisplayRate(latest.rate != null ? String(latest.rate) : "");
       setDisplayVatPercent(
-        tempItem.vatPercent != null ? String(tempItem.vatPercent) : "",
+        latest.vatPercent != null ? String(latest.vatPercent) : "",
       );
       setDisplayPphPercent(
-        tempItem.pphPercent != null ? String(tempItem.pphPercent) : "",
+        latest.pphPercent != null ? String(latest.pphPercent) : "",
       );
       setDisplayVatAmount(
-        tempItem.vatAmount != null
-          ? formatNumberWithDecimals(tempItem.vatAmount)
+        latest.vatAmount != null
+          ? formatNumberWithDecimals(latest.vatAmount)
           : "",
       );
       setDisplayPphAmount(
-        tempItem.pphAmount != null
-          ? formatNumberWithDecimals(tempItem.pphAmount)
+        latest.pphAmount != null
+          ? formatNumberWithDecimals(latest.pphAmount)
           : "",
       );
     }
@@ -289,6 +300,13 @@ export function InvoiceLineItemRow({
               Rp {formatNumberWithDecimals(field.vatAmount || 0)}
             </span>
           </div>
+        </TableCell>
+        <TableCell className="px-4 py-5 text-center align-top pt-7">
+          <span className="inline-block px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-semibold uppercase tracking-widest">
+            {pphTypes.find((p) => p.code === field.pphType)?.label ||
+              field.pphType ||
+              "—"}
+          </span>
         </TableCell>
         <TableCell className="px-4 py-5 text-right align-top pt-7 font-semibold text-slate-600 dark:text-slate-400">
           <div className="flex flex-col text-right">
@@ -526,6 +544,34 @@ export function InvoiceLineItemRow({
             />
           </div>
         </div>
+      </TableCell>
+      <TableCell className="px-4 py-5 align-top pt-7 text-center">
+        <SelectReact
+          options={pphTypes.map((p) => ({
+            value: p.code,
+            label: p.label,
+          }))}
+          value={
+            pphTypes.find((p) => p.code === tempItem.pphType)
+              ? {
+                  value: tempItem.pphType as string,
+                  label: pphTypes.find((p) => p.code === tempItem.pphType)
+                    ?.label as string,
+                }
+              : null
+          }
+          onChange={(val) => {
+            const option = val as TSelectOption | null;
+            if (!option) return;
+            onUpdateTemp((draft) => {
+              draft.pphType = option.value as string;
+            });
+          }}
+          className="min-w-30"
+          menuPortalTarget={
+            typeof document !== "undefined" ? document.body : null
+          }
+        />
       </TableCell>
       <TableCell className="px-4 py-5 text-right align-top">
         <div className="flex flex-col gap-2 w-28 ml-auto">

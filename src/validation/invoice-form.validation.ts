@@ -23,6 +23,7 @@ export const invoiceItemSchema = z.object({
   vatAmount: z.number().min(0, "VAT amount cannot be negative").default(0),
   pphPercent: z.number().min(0, "PPH percent cannot be negative").default(0),
   pphAmount: z.number().min(0, "PPH amount cannot be negative").default(0),
+  pphType: z.string().min(1, "PPH Type is required").default("PPH21"),
   filename: z.string().nullable().optional(),
 });
 

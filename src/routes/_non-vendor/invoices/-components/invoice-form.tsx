@@ -93,9 +93,11 @@ export function InvoiceForm({
 
   const { data: deptResponse } = useQuery(nonVendorQueries.departments(2));
   const { data: currResponse } = useQuery(nonVendorQueries.currencies());
+  const { data: pphTypesResponse } = useQuery(nonVendorQueries.pphTypes());
 
   const departments = deptResponse?.data ?? [];
   const currencies = currResponse?.data ?? [];
+  const pphTypes = pphTypesResponse?.data ?? [];
 
   const { fields, append, remove, update } = useFieldArray({
     control,
@@ -188,6 +190,7 @@ export function InvoiceForm({
       vatAmount: 0,
       pphPercent: 0,
       pphAmount: 0,
+      pphType: "PPH21",
     };
     append(newItem);
     setEditingIndex(fields.length);
@@ -265,6 +268,7 @@ export function InvoiceForm({
         onDelete={(index) => remove(index)}
         onUpdateTemp={updateTempItem}
         currencies={currencies}
+        pphTypes={pphTypes}
         requestId={requestId}
       />
 

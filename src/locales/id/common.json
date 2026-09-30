@@ -163,6 +163,7 @@
     "subAmount": "Subtotal",
     "vat": "PPN",
     "pph": "PPh",
+    "pphType": "Tipe PPH",
     "totalAmount": "Total Pembayaran",
     "lineItems": "Rincian Barang / Jasa",
     "description": "Deskripsi",

@@ -14,7 +14,7 @@ import ToastError from "@/components/toast/toast-error";
 import type { AxiosError } from "axios";
 import getErrorMessage from "@/utils/error-message";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
-import type { RequestType, PaymentType, PortalRequestStatus } from "@/types/portal-request.type";
+import type { PortalRequestStatus } from "@/types/portal-request.type";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -43,7 +43,7 @@ function CreateInvoicePage() {
       const shouldLeave = confirm(t("invoice.leaveConfirm"));
       return !shouldLeave;
     },
-    enableBeforeUnload: formIsDirty && !isSubmittingSuccess.current,
+    enableBeforeUnload: formIsDirty,
   });
 
   // Confirmation State
@@ -63,8 +63,8 @@ function CreateInvoicePage() {
     createRequest(
       {
         departmentId: pendingData.departmentId ?? null,
-        requestType: pendingData.requestType as RequestType,
-        paymentType: pendingData.paymentType as PaymentType,
+        requestType: String(pendingData.requestType),
+        paymentType: String(pendingData.paymentType),
         bankName: pendingData.bankName,
         beneficiaryName: pendingData.beneficiaryName,
         accountNo: pendingData.accountNo,
@@ -88,6 +88,7 @@ function CreateInvoicePage() {
           vatAmount: item.vatAmount,
           pphPercent: item.pphPercent,
           pphAmount: item.pphAmount,
+          pphType: item.pphType,
         })),
       },
       {

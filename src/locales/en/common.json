@@ -163,6 +163,7 @@
     "subAmount": "Subtotal",
     "vat": "VAT",
     "pph": "PPh",
+    "pphType": "PPH Type",
     "totalAmount": "Total Amount",
     "lineItems": "Line Items",
     "description": "Description",

@@ -21,10 +21,7 @@ import {
   DOCUMENT_STATUS_COLOR,
 } from "@/enums/document-status.enum";
 import { UpdateStatusDialog } from "./-components/update-status-dialog";
-import type {
-  PaymentType,
-  PortalRequestStatus,
-} from "@/types/portal-request.type";
+import type { PortalRequestStatus } from "@/types/portal-request.type";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import getErrorMessage from "@/utils/error-message";
 import { cn } from "@/lib/utils";
@@ -83,8 +80,8 @@ function AdminRequestDetailPage() {
 
       await updatePortalRequest(id, {
         departmentId: adminFields.departmentId,
-        requestType: adminFields.requestType,
-        paymentType: requestData.paymentType as PaymentType,
+        requestType: String(adminFields.requestType),
+        paymentType: String(requestData.paymentType),
         bankName: requestData.bankName,
         beneficiaryName: requestData.beneficiaryName,
         accountNo: requestData.accountNo,
@@ -109,6 +106,7 @@ function AdminRequestDetailPage() {
           vatAmount: d.vatAmount || 0,
           pphPercent: d.pphPercent || 0,
           pphAmount: d.pphAmount || 0,
+          pphType: d.pphType,
         })),
       });
 
@@ -135,7 +133,7 @@ function AdminRequestDetailPage() {
       window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       toast.dismiss("preview-loading");
-    } catch (error) {
+    } catch {
       toast.dismiss("preview-loading");
       toast(<ToastError message={t("admin.failedLoadDocumentPreview")} />);
     }
@@ -188,6 +186,7 @@ function AdminRequestDetailPage() {
       vatAmount: detail.vatAmount || 0,
       pphPercent: detail.pphPercent || 0,
       pphAmount: detail.pphAmount || 0,
+      pphType: detail.pphType || "PPH21",
       filename: detail.filename || null,
     })),
   };

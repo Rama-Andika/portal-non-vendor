@@ -21,6 +21,7 @@ import type {
   UpdatePortalRequestPayload,
   PortalRequestDetailResponse,
   RequestPph23Payload,
+  PphType,
 } from "@/types/portal-request.type";
 
 /**
@@ -160,6 +161,16 @@ export const getDepartments = async (
  */
 export const getCurrencies = async (): Promise<TResponse<Currency[]>> => {
   const response = await axiosInstance.get("/rest/currencies");
+  return response.data;
+};
+
+/**
+ * Fetches list of available PPH types for dropdown.
+ */
+export const getPphTypes = async (): Promise<TResponse<PphType[]>> => {
+  const response = await axiosInstance.get(
+    "/rest/portal/non-vendor/pph-types",
+  );
   return response.data;
 };
 

@@ -15,6 +15,7 @@ import type { InvoiceFormValues, InvoiceItemValues } from "@/validation/invoice-
 import { InvoiceLineItemRow } from "./invoice-line-item-row";
 import { cn } from "@/lib/utils";
 import type { Currency } from "@/types/currency.type";
+import type { PphType } from "@/types/portal-request.type";
 
 interface InvoiceLineItemsProps {
   control: Control<InvoiceFormValues>;
@@ -30,6 +31,7 @@ interface InvoiceLineItemsProps {
   onDelete: (index: number) => void;
   onUpdateTemp: (updater: (draft: Partial<InvoiceItemValues>) => void) => void;
   currencies: Currency[];
+  pphTypes: PphType[];
   requestId?: string;
 }
 
@@ -47,6 +49,7 @@ export function InvoiceLineItems({
   onDelete,
   onUpdateTemp,
   currencies,
+  pphTypes,
   requestId,
 }: InvoiceLineItemsProps) {
   const { t } = useTranslation();
@@ -88,6 +91,7 @@ export function InvoiceLineItems({
               <TableHead className="w-36 px-4 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.price")}</TableHead>
               <TableHead className="w-24 px-4 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.rate")}</TableHead>
               <TableHead className="w-32 px-4 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.vat")}</TableHead>
+              <TableHead className="w-28 px-4 py-4 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.pphType")}</TableHead>
               <TableHead className="w-32 px-4 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.pph")}</TableHead>
               <TableHead className="w-36 px-4 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.subAmount")}</TableHead>
               <TableHead className="w-28 px-4 py-4 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{t("invoice.file")}</TableHead>
@@ -109,6 +113,7 @@ export function InvoiceLineItems({
                 onDelete={() => onDelete(index)}
                 onUpdateTemp={onUpdateTemp}
                 currencies={currencies}
+                pphTypes={pphTypes}
                 requestId={requestId}
                 dbId={watchedItems[index]?.id}
                 filename={watchedItems[index]?.filename}
@@ -116,7 +121,7 @@ export function InvoiceLineItems({
             ))}
             {fields.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isReadOnly ? 10 : 11} className="px-6 py-20 text-center">
+                <TableCell colSpan={isReadOnly ? 11 : 12} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center gap-2 opacity-30">
                     <LayoutList className="w-12 h-12 mb-2" />
                     <p className="text-sm italic font-medium">{t("invoice.addAtLeastOneItem")}</p>

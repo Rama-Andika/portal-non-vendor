@@ -21,6 +21,7 @@ import type { TResponse } from "@/types/response.type";
 import {
   createNonVendorRequest,
   getCurrencies,
+  getPphTypes,
   getDepartments,
   getNonVendorRequestsList,
   getNonVendorUser,
@@ -68,6 +69,7 @@ export const nonVendorKeys = {
     departments: (level?: number) =>
       [NON_VENDOR_KEY, "lookups", "departments", { level }] as const,
     currencies: () => [NON_VENDOR_KEY, "lookups", "currencies"] as const,
+    pphTypes: () => [NON_VENDOR_KEY, "lookups", "pph-types"] as const,
   },
 };
 
@@ -121,6 +123,17 @@ export const nonVendorQueries = {
     queryOptions({
       queryKey: nonVendorKeys.lookups.currencies(),
       queryFn: getCurrencies,
+      staleTime: 30 * 60 * 1000, // 30 menit
+    }),
+
+  /**
+   * Query to fetch list of PPH types for dropdown.
+   * Stale time: 30 minutes (data jarang berubah).
+   */
+  pphTypes: () =>
+    queryOptions({
+      queryKey: nonVendorKeys.lookups.pphTypes(),
+      queryFn: getPphTypes,
       staleTime: 30 * 60 * 1000, // 30 menit
     }),
 

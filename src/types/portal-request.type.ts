@@ -1,5 +1,10 @@
 import { DOCUMENT_STATUS } from "@/enums/document-status.enum";
 
+export type PphType = {
+  code: string;
+  label: string;
+};
+
 export const PORTAL_REQUEST_STATUS_VALUES = [
   DOCUMENT_STATUS.DRAFT,
   DOCUMENT_STATUS.WAITING_APPROVAL,
@@ -99,13 +104,14 @@ export interface CreatePortalRequestDetailPayload {
   vatPercent?: number;
   pphAmount?: number;
   pphPercent?: number;
+  pphType?: string;
 }
 
 export interface CreatePortalRequestPayload {
   portalNonVendorUserId: string;
   departmentId: string | null;
-  requestType: number;
-  paymentType: PaymentType;
+  requestType: string;
+  paymentType: string;
   bankName: string;
   beneficiaryName: string;
   accountNo: string;
@@ -132,13 +138,14 @@ export interface UpdatePortalRequestDetailPayload {
   pphAmount: number;
   pphPercent: number;
   invoiceNumber?: string;
+  pphType?: string;
 }
 
 export interface UpdatePortalRequestPayload {
   portalNonVendorUserId: number | string;
   departmentId: number | string | null;
-  requestType: number | string;
-  paymentType: PaymentType | number | string;
+  requestType: string;
+  paymentType: string;
   bankName: string;
   beneficiaryName: string;
   accountNo: string;
@@ -166,6 +173,8 @@ export interface PortalRequestDetailItem {
   vatPercent?: number;
   pphAmount?: number;
   pphPercent?: number;
+  pphType?: string;
+  pphTypeLabel?: string;
   filename?: string | null;
 }
 
