@@ -173,7 +173,7 @@ export function useInvoiceColumns({
                     className="cursor-pointer"
                   >
                     <FileText className="mr-2 h-4 w-4" />
-                    <span>{t("common.view")} PPH23</span>
+                    <span>{t("common.view")} Bukti Potong</span>
                   </DropdownMenuItem>
                 )}
                 {row.status === DOCUMENT_STATUS.APPROVED && row.requestPph23 !== 1 && (

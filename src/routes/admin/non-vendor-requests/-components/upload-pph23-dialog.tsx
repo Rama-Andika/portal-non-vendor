@@ -25,6 +25,7 @@ interface UploadPph23DialogProps {
 export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
   const { t } = useTranslation();
   const [file, setFile] = React.useState<File | null>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const { mutate: uploadFile, isPending } =
@@ -39,10 +40,9 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
     }
   }, [id]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
+  // Validasi & simpan file terpilih. Dipakai oleh klik DAN drag & drop,
+  // agar validasi (PDF only, max 2MB) tidak duplikat.
+  const handleFile = (selectedFile: File) => {
     if (selectedFile.type !== "application/pdf") {
       toast(<ToastError message={t("settlement.onlyPdfAllowed")} />);
       return;
@@ -54,11 +54,40 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
     setFile(selectedFile);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    handleFile(selectedFile);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      handleFile(droppedFile);
+    }
+  };
+
   const handleUpload = () => {
     if (!id || !file) return;
 
     uploadFile(
-      { id, type: "PPH23", file },
+      { id, type: "pph23", file },
       {
         onSuccess: () => {
           toast(<ToastSuccess message={t("settlement.submitSuccess")} />);
@@ -89,20 +118,26 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 my-4 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 my-4 cursor-pointer transition-colors ${
+            isDragging
+              ? "border-main bg-main/10"
+              : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900"
+          }`}
+        >
           <input
             type="file"
             accept=".pdf"
             onChange={handleFileChange}
             ref={fileInputRef}
             className="hidden"
-            id="pph23-file-input"
             disabled={isPending}
           />
-          <label
-            htmlFor="pph23-file-input"
-            className="flex flex-col items-center cursor-pointer space-y-2 text-center"
-          >
+          <div className="flex flex-col items-center space-y-2 text-center pointer-events-none">
             {file ? (
               <>
                 <FileIcon className="h-10 w-10 text-primary animate-bounce" />
@@ -120,9 +155,10 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
                   {t("admin.clickToSelectFile")}
                 </span>
                 <span className="text-xs text-slate-400">{t("admin.pdfUpTo2mb")}</span>
+                <span className="text-xs text-slate-400">{t("common.dragDropHint")}</span>
               </>
             )}
-          </label>
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
