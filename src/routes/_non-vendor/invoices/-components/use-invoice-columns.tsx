@@ -176,7 +176,7 @@ export function useInvoiceColumns({
                     <span>{t("common.view")} PPH23</span>
                   </DropdownMenuItem>
                 )}
-                {row.requestPph23 !== 1 && (
+                {row.status === DOCUMENT_STATUS.APPROVED && row.requestPph23 !== 1 && (
                   <DropdownMenuItem 
                     onClick={() => onRequestPph23(row.id)}
                     className="cursor-pointer"
