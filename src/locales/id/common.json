@@ -244,7 +244,11 @@
     "attachmentOther": "Dokumen Lainnya",
     "attachmentOtherDesc": "File dokumen pendukung (PDF, Maks 2MB)",
     "previewFile": "Pratinjau file",
-    "replaceFile": "Ganti file"
+    "replaceFile": "Ganti file",
+    "exportCsv": "Download CSV",
+    "exporting": "Mengunduh data...",
+    "exportSuccess": "Data berhasil diunduh sebagai CSV.",
+    "exportError": "Gagal mengunduh data. Silakan coba lagi."
   },
   "settlement": {
     "title": "Daftar Settlement",
@@ -404,7 +408,11 @@
     "confirmStatusUpdateTitle": "Konfirmasi Pembaruan Status",
     "confirmStatusUpdateDesc": "Apakah Anda yakin ingin mengubah status pengajuan menjadi {{status}}? Tindakan ini akan langsung memproses pengajuan.",
     "yesProcess": "Ya, Proses",
-    "processing": "Memproses..."
+    "processing": "Memproses...",
+    "exportCsv": "Download CSV",
+    "exporting": "Mengunduh data...",
+    "exportSuccess": "Data berhasil diunduh sebagai CSV.",
+    "exportError": "Gagal mengunduh data. Silakan coba lagi."
   },
   "dialog": {
     "itemMasters": "Master Item"

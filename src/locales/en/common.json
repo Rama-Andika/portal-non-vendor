@@ -244,7 +244,11 @@
     "attachmentOther": "Other Documents",
     "attachmentOtherDesc": "Supporting document file (PDF, Max 2MB)",
     "previewFile": "Preview file",
-    "replaceFile": "Replace file"
+    "replaceFile": "Replace file",
+    "exportCsv": "Download CSV",
+    "exporting": "Downloading data...",
+    "exportSuccess": "Data downloaded successfully as CSV.",
+    "exportError": "Failed to download data. Please try again."
   },
   "settlement": {
     "title": "Settlement List",
@@ -404,7 +408,11 @@
     "confirmStatusUpdateTitle": "Confirm Status Update",
     "confirmStatusUpdateDesc": "Are you absolutely sure you want to change the request status to {{status}}? This action will process the request immediately.",
     "yesProcess": "Yes, Process",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "exportCsv": "Download CSV",
+    "exporting": "Downloading data...",
+    "exportSuccess": "Data downloaded successfully as CSV.",
+    "exportError": "Failed to download data. Please try again."
   },
   "dialog": {
     "itemMasters": "Item Masters"

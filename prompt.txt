@@ -1,1 +1,8 @@
-buatkan tahapan-tahapan dengan sangat detail, sangat jelas, dan sangat mudah dipahami karena nanti akan implementasikan oleh AI yang murah.
+jangan tulis kode atau file, terkait pertanyaanmu berikut jawaban saya:
+1. **Tipe data `requestType` & `paymentType`** — di POST/PUT ditulis `"requestType": "0"` (string), padahal frontend sekarang kirim **number**. Ini typo dokumentasi, atau backend benar-benar pindah ke string? string
+2. **Relasi `pphType` vs `pphPercent`/`pphAmount`** — sekarang PPH diisi manual (% dan nominal). Apakah `pphType` hanya **kategori/informasi** (percent tetap manual), atau memilih `pphType` harus **auto-set percent** (mis. PPH21 = 2%)? sebagai informasi. Endpoint `/pph-types` cuma return `code`+`label` (tidak ada rate), jadi kemungkinan besar bersifat informatif — mohon konfirmasi.
+3. **`pphType` required atau optional?** required Default saat tambah item kosong atau `"PPH21"`?
+4. **`beneficiaryAccount`** — field ini hanya muncul di GET. Apakah perlu ditampilkan di UI (mis. di Detail Pembayaran), atau cukup diabaikan? abaikan
+5. **Jumlah/daftar PPH type** — memang hanya `PPH21` dan `PPH4_2`, atau bisa bertambah dari endpoint? kemungkinan ada bertambah di masa depan
+
+buat file md implementation plan versi final, jangan ada kesalahan penulisan dokumen, buatkan langkah-langkahnya dengan sangat detail, sangat jelas, dan sangat mudah dipahami karena nanti akan di implementasikan oleh model AI yang murah. buat filenya secara tahap bertahap supaya tidak memakan waktu yang lama.

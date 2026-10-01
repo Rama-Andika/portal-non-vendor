@@ -8,14 +8,18 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/heading";
 import { SubHeading } from "@/components/sub-heading";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
+import dayjs from "dayjs";
+import { Spinner } from "@/components/ui/spinner";
+import { convertToCsv, downloadCsv } from "@/utils/csv";
+import { fetchAllPortalRequests } from "@/utils/fetch-all-portal-requests";
 import { invoiceSearchSchema } from "@/validation/invoice.validation";
 import { nonVendorQueries, usePatchRequestPph23Mutation } from "@/queries/non-vendor.queries";
 import { useNonVendorAuthStore } from "@/stores/non-vendor-auth.store";
 import { toast } from "sonner";
 import { getNonVendorRequestFilePreview } from "@/api/non-vendor.api";
 
-// Modular Components
+// Komponen Modular
 import { InvoiceFilters } from "./-components/invoice-filters";
 import { useInvoiceColumns } from "./-components/use-invoice-columns";
 import { RequestPph23Dialog } from "./-components/request-pph23-dialog";
@@ -34,8 +38,9 @@ function InvoiceListPage() {
   const { user } = useNonVendorAuthStore();
   const [requestPph23Id, setRequestPph23Id] = useState<string | null>(null);
   const requestPph23Mutation = usePatchRequestPph23Mutation();
+  const [isExporting, setIsExporting] = useState(false);
 
-  // 1. Data Fetching
+  // 1. Pengambilan Data
   const { data: response, isLoading } = useQuery(
     nonVendorQueries.portalRequestsList(
       {
@@ -58,7 +63,7 @@ function InvoiceListPage() {
   const requests = response?.data || [];
   const pagination = response?.pagination;
 
-  // 2. Event Handlers
+  // 2. Penanganan Aksi
   const handleSearch = (filters: {
     number: string;
     startDate: string;
@@ -131,7 +136,55 @@ function InvoiceListPage() {
     }
   };
 
-  // 3. Columns Definition
+  const handleExportCsv = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    try {
+      const allRequests = await fetchAllPortalRequests({
+        page: search.page,
+        size: search.size,
+        sortBy: search.sortBy,
+        sortOrder: search.sortOrder,
+        number: search.number,
+        startDate: search.startDate,
+        endDate: search.endDate,
+        status: search.status,
+        portalNonVendorUserId: user?.id || "",
+      });
+
+      const headers = [
+        t("columns.no"),
+        t("columns.number"),
+        t("columns.date"),
+        t("common.total"),
+        t("columns.purpose"),
+        t("columns.status"),
+      ];
+
+      const rows = allRequests.map((item, index) => [
+        index + 1,
+        item.number,
+        dayjs(item.date).format("YYYY-MM-DD"),
+        item.amount,
+        item.purpose || "",
+        item.status,
+      ]);
+
+      const csv = convertToCsv(headers, rows);
+
+      const today = dayjs().format("YYYY-MM-DD");
+      downloadCsv(csv, `invoices_${today}.csv`);
+
+      toast.success(t("invoice.exportSuccess"));
+    } catch {
+      toast.error(t("invoice.exportError"));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // 3. Definisi Kolom
   const { columns } = useInvoiceColumns({
     startIndex: pagination?.start || 0,
     sortBy: search.sortBy,
@@ -143,23 +196,41 @@ function InvoiceListPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-full overflow-hidden animate-in fade-in duration-500">
-      {/* Header Section */}
+      {/* Bagian Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <Heading>{t("invoice.title")}</Heading>
           <SubHeading>{t("invoice.subtitle")}</SubHeading>
         </div>
-        <Button
-          asChild
-          className="w-full sm:w-auto bg-main hover:bg-main/90 text-white shadow-lg transition-all active:scale-95 px-6 h-10 rounded-xl shrink-0"
-        >
-          <Link to="/invoices/new">
-            <Plus className="w-4 h-4 mr-2" /> {t("invoice.newInvoice")}
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            onClick={handleExportCsv}
+            disabled={isExporting}
+            variant="outline"
+            className="w-full sm:w-auto px-6 h-10 rounded-xl shrink-0"
+          >
+            {isExporting ? (
+              <>
+                <Spinner className="w-4 h-4" /> {t("invoice.exporting")}
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" /> {t("invoice.exportCsv")}
+              </>
+            )}
+          </Button>
+          <Button
+            asChild
+            className="w-full sm:w-auto bg-main hover:bg-main/90 text-white shadow-lg transition-all active:scale-95 px-6 h-10 rounded-xl shrink-0"
+          >
+            <Link to="/invoices/new">
+              <Plus className="w-4 h-4 mr-2" /> {t("invoice.newInvoice")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Filter Section */}
+      {/* Bagian Filter */}
       <InvoiceFilters
         onSearch={handleSearch}
         onReset={handleReset}
@@ -171,7 +242,7 @@ function InvoiceListPage() {
         }}
       />
 
-      {/* Table Section */}
+      {/* Bagian Tabel */}
       <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto w-full">
           {isLoading ? (
@@ -190,7 +261,7 @@ function InvoiceListPage() {
           )}
         </div>
 
-        {/* Pagination Footer */}
+        {/* Footer Paginasi */}
         <div className="border-t bg-muted/10 px-4 md:px-6">
           <DataTablePagination
             page={search.page}
