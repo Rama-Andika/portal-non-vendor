@@ -20,7 +20,7 @@ import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
 import type { StagedDocument } from "@/types/portal-request-document.type";
 import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
-import { uploadStagedDetailFiles } from "./-components/upload-staged-detail-files";
+import { uploadStagedDetailFiles } from "@/utils/upload-staged-detail-files";
 import { queryClient } from "@/queries/queryClient";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
