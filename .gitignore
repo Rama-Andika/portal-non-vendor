@@ -39,3 +39,10 @@ android/build/
 
 # Local scratch
 prompt.txt
+
+# React Doctor
+# Laporan audit dan hasil scan JSON bersifat lokal dan sering berubah, jadi tidak
+# di-commit. Pengecualiannya satu: false-positives.md adalah memori bersama tim
+# dan HARUS di-commit.
+.react-doctor/*
+!.react-doctor/false-positives.md

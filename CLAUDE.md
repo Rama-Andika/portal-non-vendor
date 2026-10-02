@@ -11,13 +11,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev          # Vite dev server (host: true, PWA devOptions enabled)
 npm run lint         # ESLint (typescript-eslint + react-hooks + @tanstack/router rules)
+npm run doctor       # React Doctor full scan (advisory; no network: score/telemetry/Socket.dev off)
+npm run doctor:staged # React Doctor on staged files only; fails on error-severity findings
 npx tsc -b           # Type check. `npm run build` does NOT type check; only build:war / build:android do
 npm run build        # vite build -> dist/
 npm run build:war    # tsc + build + copy WEB-INF/META-INF into dist (Windows `xcopy`) for Tomcat deployment
 npm run build:android
 ```
 
-There is no test framework in this repo.
+There is no test framework in this repo. The verification gate is `npx tsc -b` + `npm run lint` +
+`npm run doctor`. Note that `npm run lint` is **not clean** — it exits 1 — so the gate is "no new
+problems", not "zero problems": record the counts before you change anything and compare after. As
+of the C-1/C-2/C-3 fixes it reports 63 errors and 14 warnings (it was 66/14 before those), and
+`npm run doctor` reports 0 errors and 123 warnings (was 139). Both numbers drop as findings are
+fixed, so treat them as a moving reference, not a target.
+
+**React Doctor.** `react-doctor` is pinned at 0.9.14 as a devDependency and configured in
+`doctor.config.ts`. Three network channels are deliberately disabled: the score API (its payload
+includes file paths plus the repo name and commit SHA), telemetry, and the Socket.dev supply-chain
+check — so a scan is fully local. Because the config's `noScore` option does not cover telemetry,
+both npm scripts must keep passing `--no-score`. Two rules are off because they duplicate ESLint
+exactly, line for line: `react-doctor/exhaustive-deps` and `react-doctor/only-export-components`.
+ESLint remains the sole authority for both, and for React Compiler bailouts via
+`react-hooks/preserve-manual-memoization`. First full scan was 0 errors / 139 warnings; see the
+verification-gate note above for the current figure.
+
+Installing it also deduped `eslint-plugin-react-hooks` up to 7.1.1 (react-doctor depends on
+`^7.1.1`, within this repo's own `^7.0.1` range), which shifted the ESLint baseline: on 7.0.1 it
+reported 72 errors / 13 warnings, on 7.1.1 it reports 66 / 14. The movement is entirely in three
+rules — `preserve-manual-memoization` 14 → 0, `set-state-in-effect` 1 → 9, `incompatible-library`
+3 → 4 — so no source file changed. Three of those nine `set-state-in-effect` hits sit on the exact
+same lines as `react-doctor/no-adjust-state-on-prop-change`; the other six are React Doctor's alone,
+so neither tool subsumes the other and both stay on.
+
+The `react-audit` subagent (`.claude/agents/react-audit.md`, invoked with `/react-audit`) runs the
+scan, adjudicates each finding, and writes a report into `.react-doctor/`. It is **read-only**: it
+has no `Edit` tool and must never change files under `src/`. Findings proven to be false positives
+are recorded in `.react-doctor/false-positives.md`, which is the only committed file in that folder
+and is read at the start of every audit.
 
 Env vars (`.env`, `.env.production`): `VITE_API_URL` (backend base URL), `VITE_BASENAME` (used as the Vite `base`, the router `basepath`, and the cookie `path`), `VITE_LOCATION_ID`.
 
