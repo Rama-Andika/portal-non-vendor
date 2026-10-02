@@ -16,10 +16,13 @@ import { InvoicePaymentInfo } from "./invoice-payment-info";
 import { InvoiceLineItems } from "./invoice-line-items";
 import { InvoiceSummary } from "./invoice-summary";
 import { InvoiceDocuments } from "./invoice-documents";
+import { InvoiceDetailFiles } from "./invoice-detail-files";
+import { useDetailFileActions } from "./use-detail-file-actions";
 import { useQuery } from "@tanstack/react-query";
 import { nonVendorQueries } from "@/queries/non-vendor.queries";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
 import type { StagedDocument } from "@/types/portal-request-document.type";
+import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
 
 export type InvoiceFormMode = "create" | "edit" | "view";
 
@@ -35,6 +38,9 @@ interface InvoiceFormProps {
   /** Supporting document files not yet uploaded (staging). */
   stagedDocuments?: StagedDocument[];
   onStagedDocumentsChange?: (next: StagedDocument[]) => void;
+  /** Line item (detail) files not yet uploaded (staging). */
+  stagedDetailFiles?: StagedDetailFile[];
+  onStagedDetailFilesChange?: (next: StagedDetailFile[]) => void;
   isAdminEdit?: boolean;
   onAdminFieldsChange?: (fields: {
     departmentId: string | null;
@@ -53,12 +59,22 @@ export function InvoiceForm({
   status,
   stagedDocuments,
   onStagedDocumentsChange,
+  stagedDetailFiles,
+  onStagedDetailFilesChange,
   isAdminEdit,
   onAdminFieldsChange,
   journalNo,
 }: InvoiceFormProps) {
   const isReadOnly = mode === "view";
   const { t } = useTranslation();
+
+  // Created once here, then shared by the line item table and the
+  // "Detail Files" section so both behave identically.
+  const detailFileActions = useDetailFileActions({
+    requestId,
+    stagedDetailFiles: stagedDetailFiles ?? [],
+    onStagedDetailFilesChange: onStagedDetailFilesChange ?? (() => {}),
+  });
 
   const {
     register,
@@ -274,6 +290,8 @@ export function InvoiceForm({
         currencies={currencies}
         pphTypes={pphTypes}
         requestId={requestId}
+        stagedDetailFiles={stagedDetailFiles ?? []}
+        detailFileActions={detailFileActions}
       />
 
       <InvoiceSummary
@@ -295,6 +313,16 @@ export function InvoiceForm({
         onPphAmountChange={(val) => setValue("pphAmount", val)}
         isReadOnly={isReadOnly}
       >
+
+        {/* ── Detail Files Section (above Supporting Documents, all modes) ── */}
+        <InvoiceDetailFiles
+          items={(watchedItems ?? []) as InvoiceItemValues[]}
+          requestId={requestId}
+          status={status}
+          isReadOnly={isReadOnly}
+          stagedDetailFiles={stagedDetailFiles ?? []}
+          actions={detailFileActions}
+        />
 
         {/* ── Supporting Documents Section (inside Total Invoice, all modes) ── */}
         <InvoiceDocuments

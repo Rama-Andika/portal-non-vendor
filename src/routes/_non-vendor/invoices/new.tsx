@@ -19,6 +19,9 @@ import getErrorMessage from "@/utils/error-message";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
 import type { StagedDocument } from "@/types/portal-request-document.type";
+import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
+import { uploadStagedDetailFiles } from "./-components/upload-staged-detail-files";
+import { queryClient } from "@/queries/queryClient";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -45,9 +48,19 @@ function CreateInvoicePage() {
   const [stagedDocuments, setStagedDocuments] = useState<StagedDocument[]>([]);
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
 
+  // Line item files cannot be uploaded yet either: the detail IDs only exist
+  // after the invoice is saved.
+  const [stagedDetailFiles, setStagedDetailFiles] = useState<
+    StagedDetailFile[]
+  >([]);
+  const [isUploadingDetailFiles, setIsUploadingDetailFiles] = useState(false);
+
   // Selected files are also counted as unsaved changes,
   // so the user does not lose files when leaving the page.
-  const hasUnsavedChanges = formIsDirty || stagedDocuments.length > 0;
+  const hasUnsavedChanges =
+    formIsDirty ||
+    stagedDocuments.length > 0 ||
+    stagedDetailFiles.length > 0;
 
   useBlocker({
     shouldBlockFn: ({ next }) => {
@@ -154,6 +167,59 @@ function CreateInvoicePage() {
             }
           }
 
+          // Upload the staged line item files. Runs after the supporting
+          // documents, and only once the detail IDs can be read back.
+          if (stagedDetailFiles.length > 0) {
+            if (!newId) {
+              toast(
+                <ToastError
+                  message={t("invoice.detailFiles.uploadNoRequestId")}
+                />,
+              );
+              setStagedDetailFiles([]);
+            } else {
+              setIsUploadingDetailFiles(true);
+              try {
+                const { failedNumbers, unmatchedNumbers } =
+                  await uploadStagedDetailFiles({
+                    requestId: newId,
+                    submittedItems: pendingData.items,
+                    staged: stagedDetailFiles,
+                    queryClient,
+                  });
+
+                if (failedNumbers.length > 0) {
+                  toast(
+                    <ToastError
+                      message={t("invoice.detailFiles.uploadAfterSaveFailed", {
+                        numbers: failedNumbers.join(", "),
+                      })}
+                    />,
+                  );
+                }
+
+                if (unmatchedNumbers.length > 0) {
+                  toast(
+                    <ToastError
+                      message={t("invoice.detailFiles.uploadAfterSaveMismatch")}
+                    />,
+                  );
+                }
+              } catch {
+                toast(
+                  <ToastError
+                    message={t("invoice.detailFiles.uploadAfterSaveError")}
+                  />,
+                );
+              } finally {
+                setIsUploadingDetailFiles(false);
+                // Always cleared: the invoice is saved, and keeping the files
+                // would block navigation. Failures are reported by toast.
+                setStagedDetailFiles([]);
+              }
+            }
+          }
+
           // Always navigate to the detail page whether upload succeeds or fails:
           // invoice is already saved and user can retry uploading there.
           if (newId) {
@@ -201,10 +267,14 @@ function CreateInvoicePage() {
                 swiftCode: primaryBank?.swiftCode || "",
               }}
               onSubmitSuccess={handleSuccess}
-              isSubmitting={isPending || isUploadingDocuments}
+              isSubmitting={
+                isPending || isUploadingDocuments || isUploadingDetailFiles
+              }
               onDirtyChange={setFormIsDirty}
               stagedDocuments={stagedDocuments}
               onStagedDocumentsChange={setStagedDocuments}
+              stagedDetailFiles={stagedDetailFiles}
+              onStagedDetailFilesChange={setStagedDetailFiles}
             />
           );
         })()}
@@ -214,7 +284,7 @@ function CreateInvoicePage() {
         open={showConfirm}
         onOpenChange={setShowConfirm}
         onConfirm={handleConfirmSubmit}
-        isLoading={isPending || isUploadingDocuments}
+        isLoading={isPending || isUploadingDocuments || isUploadingDetailFiles}
         title={
           pendingData?.status === "WAITING_APPROVAL"
             ? t("invoice.confirmSubmitTitle")

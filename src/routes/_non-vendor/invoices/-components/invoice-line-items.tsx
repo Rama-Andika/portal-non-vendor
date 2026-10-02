@@ -16,6 +16,9 @@ import { InvoiceLineItemRow } from "./invoice-line-item-row";
 import { cn } from "@/lib/utils";
 import type { Currency } from "@/types/currency.type";
 import type { PphType } from "@/types/portal-request.type";
+import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
+import { getStagedDetailFile } from "@/utils/portal-request-detail-file";
+import type { UseDetailFileActionsResult } from "./use-detail-file-actions";
 
 interface InvoiceLineItemsProps {
   control: Control<InvoiceFormValues>;
@@ -33,6 +36,8 @@ interface InvoiceLineItemsProps {
   currencies: Currency[];
   pphTypes: PphType[];
   requestId?: string;
+  stagedDetailFiles: StagedDetailFile[];
+  detailFileActions: UseDetailFileActionsResult;
 }
 
 export function InvoiceLineItems({
@@ -51,6 +56,8 @@ export function InvoiceLineItems({
   currencies,
   pphTypes,
   requestId,
+  stagedDetailFiles,
+  detailFileActions,
 }: InvoiceLineItemsProps) {
   const { t } = useTranslation();
   const watchedItems = useWatch({ control, name: "items" }) || [];
@@ -117,6 +124,11 @@ export function InvoiceLineItems({
                 requestId={requestId}
                 dbId={watchedItems[index]?.id}
                 filename={watchedItems[index]?.filename}
+                detailFileActions={detailFileActions}
+                stagedFile={getStagedDetailFile(
+                  stagedDetailFiles,
+                  watchedItems[index]?.id ?? "",
+                )}
               />
             ))}
             {fields.length === 0 && (

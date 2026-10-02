@@ -25,6 +25,8 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
 import type { StagedDocument } from "@/types/portal-request-document.type";
+import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
+import { uploadStagedDetailFiles } from "./-components/upload-staged-detail-files";
 import {
   DOCUMENT_STATUS,
   DOCUMENT_STATUS_COLOR,
@@ -74,6 +76,17 @@ function UpdateInvoicePage() {
     null,
   );
   const [stagedDocuments, setStagedDocuments] = useState<StagedDocument[]>([]);
+
+  // Files for rows that do not have a server ID yet (newly added rows).
+  const [stagedDetailFiles, setStagedDetailFiles] = useState<
+    StagedDetailFile[]
+  >([]);
+  const [isUploadingDetailFiles, setIsUploadingDetailFiles] = useState(false);
+
+  // Bumped after a successful save so InvoiceForm remounts and picks up the
+  // server data again. Without it, `keepDirtyValues` makes the form keep the
+  // frontend UUIDs and miss the freshly uploaded file names.
+  const [formVersion, setFormVersion] = useState(0);
 
   // 5. Mapping respons data ke default values form
   const defaultValues = useMemo(() => {
@@ -228,10 +241,55 @@ function UpdateInvoicePage() {
         }),
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           setShowConfirm(false);
           setPendingData(null);
           toast(<ToastSuccess message={t("invoice.updateSuccess")} />);
+
+          // Rows that were added in this session only get a server ID now, so
+          // their staged files are uploaded after the update succeeds.
+          if (stagedDetailFiles.length > 0) {
+            setIsUploadingDetailFiles(true);
+            try {
+              const { failedNumbers, unmatchedNumbers } =
+                await uploadStagedDetailFiles({
+                  requestId: id,
+                  submittedItems: pendingData.items,
+                  staged: stagedDetailFiles,
+                  queryClient,
+                });
+
+              if (failedNumbers.length > 0) {
+                toast(
+                  <ToastError
+                    message={t("invoice.detailFiles.uploadAfterSaveFailed", {
+                      numbers: failedNumbers.join(", "),
+                    })}
+                  />,
+                );
+              }
+
+              if (unmatchedNumbers.length > 0) {
+                toast(
+                  <ToastError
+                    message={t("invoice.detailFiles.uploadAfterSaveMismatch")}
+                  />,
+                );
+              }
+            } catch {
+              toast(
+                <ToastError
+                  message={t("invoice.detailFiles.uploadAfterSaveError")}
+                />,
+              );
+            } finally {
+              setIsUploadingDetailFiles(false);
+              setStagedDetailFiles([]);
+            }
+          }
+
+          // Re-sync the form with the server (new detail IDs + file names).
+          setFormVersion((version) => version + 1);
         },
         onError: (err) => {
           const message = getErrorMessage(err as AxiosError);
@@ -334,14 +392,17 @@ function UpdateInvoicePage() {
         )}
 
         <InvoiceForm
+          key={formVersion}
           mode={isEditable ? "edit" : "view"}
           requestId={id}
           defaultValues={defaultValues}
           onSubmitSuccess={handleSuccess}
-          isSubmitting={isPending}
+          isSubmitting={isPending || isUploadingDetailFiles}
           status={requestData.status as PortalRequestStatus}
           stagedDocuments={stagedDocuments}
           onStagedDocumentsChange={setStagedDocuments}
+          stagedDetailFiles={stagedDetailFiles}
+          onStagedDetailFilesChange={setStagedDetailFiles}
           journalNo={requestData.number || undefined}
         />
 
@@ -375,7 +436,7 @@ function UpdateInvoicePage() {
             pendingData?.status === "DRAFT" ? t("common.saveDraft") : t("common.submit")
           }
           cancelText={t("common.cancel")}
-          isLoading={isPending}
+          isLoading={isPending || isUploadingDetailFiles}
         />
       </div>
     </div>

@@ -16,14 +16,8 @@ import { toValidNumber } from "@/utils/to-valid-number";
 import { cn } from "@/lib/utils";
 import type { Currency } from "@/types/currency.type";
 import type { PphType } from "@/types/portal-request.type";
-import { toast } from "sonner";
-import ToastError from "@/components/toast/toast-error";
-import ToastSuccess from "@/components/toast/toast-success";
-import {
-  useUploadNonVendorRequestDetailFileMutation,
-  useDeleteNonVendorRequestDetailFileMutation,
-} from "@/queries/non-vendor.queries";
-import { getNonVendorRequestDetailFilePreview } from "@/api/non-vendor.api";
+import type { UseDetailFileActionsResult } from "./use-detail-file-actions";
+
 interface InvoiceLineItemRowProps {
   field: FieldArrayWithId<InvoiceFormValues, "items">;
   index: number;
@@ -40,6 +34,10 @@ interface InvoiceLineItemRowProps {
   requestId?: string;
   dbId?: string;
   filename?: string | null;
+  /** Shared file actions, created once in InvoiceForm. */
+  detailFileActions: UseDetailFileActionsResult;
+  /** File staged for this row (not uploaded yet), if any. */
+  stagedFile?: File;
 }
 
 export function InvoiceLineItemRow({
@@ -55,9 +53,10 @@ export function InvoiceLineItemRow({
   onUpdateTemp,
   currencies,
   pphTypes,
-  requestId,
   dbId,
   filename,
+  detailFileActions,
+  stagedFile,
 }: InvoiceLineItemRowProps) {
   const { t } = useTranslation();
   // Local display states for BUG-3 fix
@@ -69,81 +68,11 @@ export function InvoiceLineItemRow({
   const [displayPphAmount, setDisplayPphAmount] = useState("");
   const [memoError, setMemoError] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-
-  const { mutate: uploadFile, isPending: isUploading } =
-    useUploadNonVendorRequestDetailFileMutation(requestId || "");
-
-  const { mutate: deleteFile, isPending: isDeleting } =
-    useDeleteNonVendorRequestDetailFileMutation(requestId || "");
-
-  const currentDbId = isEditing ? tempItem.id : dbId;
+  // File actions now live in useDetailFileActions (shared with InvoiceDetailFiles),
+  // so a row that is not saved yet stages its file instead of calling the API
+  // with a frontend-generated UUID.
+  const currentItemId = (isEditing ? tempItem.id : dbId) ?? "";
   const currentFilename = isEditing ? tempItem.filename : filename;
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== "application/pdf") {
-      toast(<ToastError message={t("settlement.onlyPdfAllowed")} />);
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast(<ToastError message={t("settlement.maxSize2mb")} />);
-      return;
-    }
-
-    if (!currentDbId) {
-      toast(
-        <ToastError message={t("invoice.detailIdNotFound")} />,
-      );
-      return;
-    }
-
-    uploadFile(
-      { id: currentDbId, file },
-      {
-        onError: () => {
-          toast(<ToastError message={t("invoice.uploadFailedSome")} />);
-        },
-      },
-    );
-  };
-
-  const handlePreview = async (fname: string) => {
-    try {
-      setIsPreviewLoading(true);
-      toast.loading(t("admin.loadingDocumentPreview"), { id: "preview-loading" });
-      const blob = await getNonVendorRequestDetailFilePreview(fname);
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-      toast.dismiss("preview-loading");
-    } catch {
-      toast.dismiss("preview-loading");
-      toast(<ToastError message={t("admin.failedLoadDocumentPreview")} />);
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  };
-
-  const handleDeleteFile = () => {
-    if (!currentDbId) return;
-
-    toast.loading(t("common.loading"), { id: "delete-loading" });
-    deleteFile(currentDbId, {
-      onSuccess: () => {
-        toast.dismiss("delete-loading");
-        toast(<ToastSuccess message={t("invoice.fileDeletedSuccess")} />);
-      },
-      onError: () => {
-        toast.dismiss("delete-loading");
-        toast(<ToastError message={t("invoice.failedDeleteFile")} />);
-      },
-    });
-  };
 
   // Keep the latest tempItem in a ref so the sync effect below can read it
   // without depending on every field (depending on them would disrupt typing).
@@ -319,80 +248,13 @@ export function InvoiceLineItemRow({
         <TableCell className="px-4 py-5 text-right font-bold text-main text-lg align-top pt-7">
           {formatNumberWithDecimals(field.subTotal || 0)}
         </TableCell>
-        <TableCell className="px-4 py-5 align-top pt-6 text-center">
-          <div className="flex items-center justify-center gap-1.5 min-h-9">
-            {currentFilename ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={isPreviewLoading}
-                onClick={() => handlePreview(currentFilename)}
-                className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-                title={t("invoice.viewPdf")}
-              >
-                {isPreviewLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5" />
-                )}
-              </Button>
-            ) : null}
-
-            {/* Upload Button */}
-            {!isReadOnly && currentDbId && requestId && (
-              <>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="application/pdf"
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={isUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-                  title={currentFilename ? t("invoice.changePdf") : t("invoice.uploadPdfMax2mb")}
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Paperclip className="w-3.5 h-3.5" />
-                  )}
-                </Button>
-              </>
-            )}
-
-            {/* Delete Button */}
-            {!isReadOnly && currentDbId && requestId && currentFilename && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={isDeleting || isUploading}
-                onClick={handleDeleteFile}
-                className="h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-                title={t("invoice.deletePdf")}
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <FileX className="w-3.5 h-3.5" />
-                )}
-              </Button>
-            )}
-
-            {!currentFilename && (isReadOnly || !currentDbId || !requestId) && (
-              <span className="text-xs text-slate-400 font-normal select-none">
-                —
-              </span>
-            )}
-          </div>
-        </TableCell>
+        <DetailFileCell
+          itemId={currentItemId}
+          filename={currentFilename}
+          stagedFile={stagedFile}
+          isReadOnly={isReadOnly}
+          actions={detailFileActions}
+        />
         {!isReadOnly && (
           <TableCell className="px-4 py-5 align-top pt-7 text-center">
             <div className="flex items-center justify-center gap-2">
@@ -609,80 +471,13 @@ export function InvoiceLineItemRow({
       <TableCell className="px-4 py-5 text-right font-bold text-main text-lg align-top pt-7">
         {formatNumberWithDecimals(tempItem.subTotal || 0)}
       </TableCell>
-      <TableCell className="px-4 py-5 align-top pt-6 text-center">
-        <div className="flex items-center justify-center gap-1.5 min-h-9">
-          {currentFilename ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={isPreviewLoading}
-              onClick={() => handlePreview(currentFilename)}
-              className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-              title={t("invoice.viewPdf")}
-            >
-              {isPreviewLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Eye className="w-3.5 h-3.5" />
-              )}
-            </Button>
-          ) : null}
-
-          {/* Upload Button */}
-          {!isReadOnly && currentDbId && requestId && (
-            <>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="application/pdf"
-                className="hidden"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={isUploading}
-                onClick={() => fileInputRef.current?.click()}
-                className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-                title={currentFilename ? t("invoice.changePdf") : t("invoice.uploadPdfMax2mb")}
-              >
-                {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Paperclip className="w-3.5 h-3.5" />
-                )}
-              </Button>
-            </>
-          )}
-
-          {/* Delete Button */}
-          {!isReadOnly && currentDbId && requestId && currentFilename && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={isDeleting || isUploading}
-              onClick={handleDeleteFile}
-              className="h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
-              title={t("invoice.deletePdf")}
-            >
-              {isDeleting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <FileX className="w-3.5 h-3.5" />
-              )}
-            </Button>
-          )}
-
-          {!currentFilename && (isReadOnly || !currentDbId || !requestId) && (
-            <span className="text-xs text-slate-400 font-normal select-none">
-              —
-            </span>
-          )}
-        </div>
-      </TableCell>
+      <DetailFileCell
+        itemId={currentItemId}
+        filename={currentFilename}
+        stagedFile={stagedFile}
+        isReadOnly={isReadOnly}
+        actions={detailFileActions}
+      />
       <TableCell className="px-4 py-5 align-top pt-7 text-center">
         <div className="flex items-center justify-center gap-2">
           <Button
@@ -712,5 +507,136 @@ export function InvoiceLineItemRow({
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+interface DetailFileCellProps {
+  /** Form item ID: a server ID for a saved row, a frontend UUID otherwise. */
+  itemId: string;
+  filename?: string | null;
+  stagedFile?: File;
+  isReadOnly?: boolean;
+  actions: UseDetailFileActionsResult;
+}
+
+/**
+ * The "File" cell of one line item row.
+ *
+ * Extracted because the display branch and the edit branch of the row render
+ * exactly the same cell.
+ */
+function DetailFileCell({
+  itemId,
+  filename,
+  stagedFile,
+  isReadOnly,
+  actions,
+}: DetailFileCellProps) {
+  const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isUploading = actions.uploadingItemId === itemId;
+  const isDeleting = actions.deletingItemId === itemId;
+  const isPreviewing = actions.previewingItemId === itemId;
+  const canModify = !isReadOnly && !!itemId;
+  const hasAnyFile = !!filename || !!stagedFile;
+
+  return (
+    <TableCell className="px-4 py-5 align-top pt-6 text-center">
+      <div className="flex items-center justify-center gap-1.5 min-h-9">
+        {filename ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={isPreviewing}
+            onClick={() => actions.previewFile(filename, itemId)}
+            className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
+            title={t("invoice.viewPdf")}
+          >
+            {isPreviewing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Eye className="w-3.5 h-3.5" />
+            )}
+          </Button>
+        ) : null}
+
+        {/* Upload / Replace. A row without a server ID stages its file. */}
+        {canModify && (
+          <>
+            <input
+              type="file"
+              ref={inputRef}
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) actions.selectFile({ itemId, file });
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={isUploading || isDeleting}
+              onClick={() => inputRef.current?.click()}
+              className="h-8 text-slate-400 hover:text-main hover:bg-main/5 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
+              title={
+                hasAnyFile
+                  ? t("invoice.changePdf")
+                  : t("invoice.uploadPdfMax2mb")
+              }
+            >
+              {isUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Paperclip className="w-3.5 h-3.5" />
+              )}
+            </Button>
+          </>
+        )}
+
+        {/* Delete only applies to a file that already exists on the server. */}
+        {canModify && filename && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={isDeleting || isUploading}
+            onClick={() => actions.deleteFile(itemId)}
+            className="h-8 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
+            title={t("invoice.deletePdf")}
+          >
+            {isDeleting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileX className="w-3.5 h-3.5" />
+            )}
+          </Button>
+        )}
+
+        {/* Discard a staged file that has not been uploaded yet. */}
+        {canModify && stagedFile && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => actions.removeStagedFile(itemId)}
+            className="h-8 text-main hover:text-destructive hover:bg-red-50 rounded-lg px-2 text-xs flex items-center gap-1 transition-all"
+            title={t("invoice.detailFiles.pendingBadge")}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        )}
+
+        {!hasAnyFile && !canModify && (
+          <span className="text-xs text-slate-400 font-normal select-none">
+            —
+          </span>
+        )}
+      </div>
+    </TableCell>
   );
 }
