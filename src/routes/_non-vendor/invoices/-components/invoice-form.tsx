@@ -231,9 +231,20 @@ export function InvoiceForm({
     setIsNewItem(false);
   };
 
+  /**
+   * Removes a line item together with any file it still has in staging.
+   * Without this, the staged file would keep the "unsaved changes" blocker and
+   * the "will be uploaded after saving" hint alive for a row that no longer exists.
+   */
+  const removeItem = (index: number) => {
+    const itemId = watchedItems?.[index]?.id;
+    if (itemId) detailFileActions.removeStagedFile(itemId);
+    remove(index);
+  };
+
   const handleCancelEdit = () => {
     if (isNewItem && editingIndex !== null) {
-      remove(editingIndex);
+      removeItem(editingIndex);
     }
     setEditingIndex(null);
     setIsNewItem(false);
@@ -285,7 +296,7 @@ export function InvoiceForm({
         onEdit={handleEditItem}
         onSave={handleSaveItem}
         onCancel={handleCancelEdit}
-        onDelete={(index) => remove(index)}
+        onDelete={removeItem}
         onUpdateTemp={updateTempItem}
         currencies={currencies}
         pphTypes={pphTypes}

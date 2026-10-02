@@ -37,7 +37,7 @@ export interface UseDetailFileActionsResult {
   uploadingItemId: string | null;
   deletingItemId: string | null;
   previewingItemId: string | null;
-  isUploading: boolean;
+  /** True while any delete is running. Used to lock the confirm dialog. */
   isDeleting: boolean;
 }
 
@@ -58,7 +58,7 @@ export function useDetailFileActions({
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [previewingItemId, setPreviewingItemId] = useState<string | null>(null);
 
-  const { mutate: uploadDetailFile, isPending: isUploading } =
+  const { mutate: uploadDetailFile } =
     useUploadNonVendorRequestDetailFileMutation(requestId ?? "");
   const { mutate: deleteDetailFile, isPending: isDeleting } =
     useDeleteNonVendorRequestDetailFileMutation(requestId ?? "");
@@ -168,7 +168,6 @@ export function useDetailFileActions({
     uploadingItemId,
     deletingItemId,
     previewingItemId,
-    isUploading,
     isDeleting,
   };
 }

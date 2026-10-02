@@ -106,6 +106,14 @@ export interface ResolveDetailUploadTargetsResult {
 }
 
 /**
+ * Compares two texts the way the comparison is meant here: a backend that
+ * trims or drops a value must not break the matching below.
+ */
+function sameText(a?: string | null, b?: string | null): boolean {
+  return (a ?? "").trim() === (b ?? "").trim();
+}
+
+/**
  * Matches staged files to the server detail IDs created by the last save.
  *
  * The server only returns the request ID on create, so the detail IDs have to
@@ -135,7 +143,7 @@ export function resolveDetailUploadTargets({
     if (
       byOrder !== undefined &&
       !usedDetailIds.has(byOrder.id) &&
-      byOrder.description === item.description
+      sameText(byOrder.description, item.description)
     ) {
       usedDetailIds.add(byOrder.id);
       targets.push({ number, detailId: byOrder.id, file });
@@ -146,8 +154,8 @@ export function resolveDetailUploadTargets({
     const candidates = serverDetails.filter(
       (detail) =>
         !usedDetailIds.has(detail.id) &&
-        detail.description === item.description &&
-        (detail.invoiceNumber ?? "") === (item.invoiceNumber ?? "") &&
+        sameText(detail.description, item.description) &&
+        sameText(detail.invoiceNumber, item.invoiceNumber) &&
         detail.price === item.price,
     );
     if (candidates.length === 1) {

@@ -176,9 +176,17 @@ export function InvoiceDetailFiles({
               <div
                 key={item.id || index}
                 onDragOver={(e) => {
+                  // preventDefault stays unconditional: without it the browser
+                  // would open the dropped file and navigate away from the form.
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!canModify) return;
+                  if (!canModify) {
+                    // Show a "not allowed" cursor instead of inviting a drop
+                    // that would silently be ignored.
+                    e.dataTransfer.dropEffect = "none";
+                    return;
+                  }
+                  e.dataTransfer.dropEffect = "copy";
                   setDraggingItemId(item.id);
                 }}
                 onDragLeave={(e) => {
