@@ -88,19 +88,11 @@ export function UpdateStatusDialog({ user, onClose }: UpdateStatusDialogProps) {
     "existing",
   );
 
-  // Reset form every time the dialog is opened for a different user
-  React.useEffect(() => {
-    if (user) {
-      setSelectedStatus("");
-      setReason("");
-      setValidationError("");
-      setVendorKeyword("");
-      setSubmittedVendorKeyword("");
-      setSelectedVendor(null);
-      setCreatePkp(null);
-      setVendorMode("existing");
-    }
-  }, [user]);
+  // Reset form dilakukan lewat prop `key` di induk (admin/users.tsx), bukan effect.
+  // Induk merender <UpdateStatusDialog key={selectedUser?.id ?? "closed"} ... />, jadi
+  // React memasang ulang komponen ini setiap dialog dibuka untuk user berbeda dan
+  // seluruh useState di atas kembali ke nilai awal tanpa render perantara yang
+  // sempat menampilkan data user sebelumnya.
 
   // TanStack Query Mutation
   const { mutate, isPending } = useMutation({

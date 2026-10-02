@@ -70,16 +70,12 @@ export function UpdateStatusDialog({
     React.useState<boolean>(false);
   const [isPendingLocal, setIsPendingLocal] = React.useState<boolean>(false);
 
-  // Reset form when opened/closed
-  React.useEffect(() => {
-    if (id) {
-      setSelectedStatus("");
-      setReason("");
-      setValidationError("");
-      setShowConfirmation(false);
-      setIsPendingLocal(false);
-    }
-  }, [id]);
+  // Reset form dilakukan lewat prop `key` di induk, bukan effect. Komponen ini
+  // dirender dari DUA tempat dan keduanya memasang `key`:
+  //   - non-vendor-requests/index.tsx    key={selectedRequest?.id ?? "closed"}
+  //   - non-vendor-requests/$id.detail.tsx  key={isUpdateDialogOpen ? id : "closed"}
+  // React memasang ulang komponen ini setiap dialog dibuka, jadi showConfirmation
+  // selalu mulai dari langkah pertama tanpa render perantara.
 
   // mutation
   const { mutate, isPending } = useUpdateAdminPortalRequestStatusMutation();

@@ -298,12 +298,14 @@ function AdminInvoiceListPage() {
       </div>
 
       <UpdateStatusDialog
+        key={selectedRequest?.id ?? "closed"}
         id={selectedRequest?.id || null}
         currentStatus={selectedRequest?.status}
         onClose={() => setSelectedRequest(null)}
       />
 
       <UploadPph23Dialog
+        key={uploadPph23Id ?? "closed"}
         id={uploadPph23Id}
         onClose={() => setUploadPph23Id(null)}
       />

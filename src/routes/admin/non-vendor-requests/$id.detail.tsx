@@ -334,6 +334,7 @@ function AdminRequestDetailPage() {
       </div>
 
       <UpdateStatusDialog
+        key={isUpdateDialogOpen ? id : "closed"}
         id={isUpdateDialogOpen ? id : null}
         currentStatus={requestData.status}
         onClose={() => setIsUpdateDialogOpen(false)}

@@ -31,14 +31,10 @@ export function UploadPph23Dialog({ id, onClose }: UploadPph23DialogProps) {
   const { mutate: uploadFile, isPending } =
     useUploadNonVendorRequestFileMutation();
 
-  React.useEffect(() => {
-    if (id) {
-      setFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  }, [id]);
+  // Reset file dilakukan lewat prop `key` di induk (non-vendor-requests/index.tsx:
+  // key={uploadPph23Id ?? "closed"}), bukan effect. Remount menghasilkan elemen
+  // <input type="file"> yang baru dan kosong, jadi reset manual fileInputRef tidak
+  // diperlukan lagi, dan isDragging ikut bersih (sebelumnya tidak direset sama sekali).
 
   // Validasi & simpan file terpilih. Dipakai oleh klik DAN drag & drop,
   // agar validasi (PDF only, max 2MB) tidak duplikat.

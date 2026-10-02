@@ -168,6 +168,7 @@ function AdminUsersPage() {
 
       {/* Dialog Update Status */}
       <UpdateStatusDialog
+        key={selectedUser?.id ?? "closed"}
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
       />
