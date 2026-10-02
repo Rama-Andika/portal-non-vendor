@@ -24,6 +24,7 @@ import { getNonVendorRequestFilePreview } from "@/api/non-vendor.api";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
+import type { StagedDocument } from "@/types/portal-request-document.type";
 import {
   DOCUMENT_STATUS,
   DOCUMENT_STATUS_COLOR,
@@ -54,6 +55,16 @@ function UpdateInvoicePage() {
   );
   const requestData = response?.data;
 
+  // 1b. Supporting documents list.
+  // Uses the same query key as InvoiceDocuments, so data is
+  // shared from the same cache and does not cause duplicate requests.
+  const {
+    data: documentsResponse,
+    isLoading: isDocumentsLoading,
+    isError: isDocumentsError,
+  } = useQuery(nonVendorQueries.portalRequestDocuments(id));
+  const documents = documentsResponse?.data ?? [];
+
   // 2. Setup mutations & local states
   const { mutate: updateRequest, isPending } =
     useUpdatePortalRequestMutation(id);
@@ -62,6 +73,7 @@ function UpdateInvoicePage() {
   const [pendingData, setPendingData] = useState<InvoiceFormValues | null>(
     null,
   );
+  const [stagedDocuments, setStagedDocuments] = useState<StagedDocument[]>([]);
 
   // 5. Mapping respons data ke default values form
   const defaultValues = useMemo(() => {
@@ -121,26 +133,56 @@ function UpdateInvoicePage() {
     );
   }
 
-  // Business Rule: Can only be edited if status is DRAFT, REJECTED, or REVISION
+  // Business Rule: Can only be edited if status is DRAFT or REVISION.
+  // REJECTED is intentionally excluded: the backend forbids uploading or
+  // deleting supporting documents outside DRAFT/REVISION, so allowing edits
+  // here would let the user reach the submit button without any way to
+  // satisfy the "at least one supporting document" requirement.
   const isEditable =
     requestData.status === DOCUMENT_STATUS.DRAFT ||
-    requestData.status === DOCUMENT_STATUS.REJECTED ||
     requestData.status === DOCUMENT_STATUS.REVISION;
 
   // 4. Handle Save / Update
   const handleSuccess = (formData: InvoiceFormValues) => {
+    // Prevent the user from saving while there are still files in staging,
+    // so that those files are not lost unnoticed.
+    if (stagedDocuments.length > 0) {
+      toast(
+        <ToastError message={t("invoice.documents.pendingUploadWarning")} />,
+      );
+      return;
+    }
+
+    // Business rule: submitting to WAITING_APPROVAL requires
+    // at least 1 supporting document already uploaded.
+    //
+    // The three checks below are deliberately separate. An empty `documents`
+    // array can also mean "the list has not arrived yet" or "the request
+    // failed", and treating those as "this invoice has no documents" would
+    // tell the user to upload a file that may already exist.
     if (formData.status === "WAITING_APPROVAL") {
-      const hasAttachment =
-        !!requestData.formPath ||
-        !!requestData.attachmentPath ||
-        !!requestData.approvalDocPath;
-      if (!hasAttachment) {
+      if (isDocumentsLoading) {
         toast(
-          <ToastError message={t("invoice.uploadAtLeastOneAttachment")} />,
+          <ToastError message={t("invoice.documents.listStillLoading")} />,
         );
         return;
       }
+
+      // `!documentsResponse` matters here: the query refetches on every mount,
+      // and a failed refetch sets `isError` while keeping the previously
+      // cached list. Blocking on `isError` alone would reject a submit whose
+      // requirement is already satisfied by that still-valid cached data.
+      if (isDocumentsError && !documentsResponse) {
+        toast(<ToastError message={t("invoice.documents.listLoadFailed")} />);
+        return;
+      }
+
+      if (documents.length === 0) {
+        toast(<ToastError message={t("invoice.documents.requiredOnSubmit")} />);
+        return;
+      }
     }
+
     setPendingData(formData);
     setShowConfirm(true);
   };
@@ -297,11 +339,9 @@ function UpdateInvoicePage() {
           defaultValues={defaultValues}
           onSubmitSuccess={handleSuccess}
           isSubmitting={isPending}
-          existingFiles={{
-            invoice_path: requestData.attachmentPath,
-            faktur_pajak_path: requestData.formPath,
-            approval_doc_path: requestData.approvalDocPath,
-          }}
+          status={requestData.status as PortalRequestStatus}
+          stagedDocuments={stagedDocuments}
+          onStagedDocumentsChange={setStagedDocuments}
           journalNo={requestData.number || undefined}
         />
 

@@ -6,7 +6,10 @@ import {
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { InvoiceForm } from "./-components/invoice-form";
-import { useCreatePortalRequestMutation } from "@/queries/non-vendor.queries";
+import {
+  useCreatePortalRequestMutation,
+  useUploadPortalRequestDocumentsMutation,
+} from "@/queries/non-vendor.queries";
 import { useNonVendorAuthStore } from "@/stores/non-vendor-auth.store";
 import { toast } from "sonner";
 import ToastSuccess from "@/components/toast/toast-success";
@@ -15,6 +18,7 @@ import type { AxiosError } from "axios";
 import getErrorMessage from "@/utils/error-message";
 import type { InvoiceFormValues } from "@/validation/invoice-form.validation";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
+import type { StagedDocument } from "@/types/portal-request-document.type";
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -30,20 +34,31 @@ function CreateInvoicePage() {
   const navigate = useNavigate();
   const { user } = useNonVendorAuthStore();
   const { mutate: createRequest, isPending } = useCreatePortalRequestMutation();
+  const { mutateAsync: uploadDocuments } =
+    useUploadPortalRequestDocumentsMutation();
 
   const [formIsDirty, setFormIsDirty] = useState(false);
   const isSubmittingSuccess = useRef(false);
 
+  // Supporting documents selected by user but cannot be uploaded yet,
+  // because the request ID only exists after the invoice is saved.
+  const [stagedDocuments, setStagedDocuments] = useState<StagedDocument[]>([]);
+  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
+
+  // Selected files are also counted as unsaved changes,
+  // so the user does not lose files when leaving the page.
+  const hasUnsavedChanges = formIsDirty || stagedDocuments.length > 0;
+
   useBlocker({
     shouldBlockFn: ({ next }) => {
       if (isSubmittingSuccess.current) return false;
-      if (!formIsDirty) return false;
+      if (!hasUnsavedChanges) return false;
       if (next?.pathname?.includes("/login")) return false;
 
       const shouldLeave = confirm(t("invoice.leaveConfirm"));
       return !shouldLeave;
     },
-    enableBeforeUnload: formIsDirty,
+    enableBeforeUnload: hasUnsavedChanges,
   });
 
   // Confirmation State
@@ -92,12 +107,55 @@ function CreateInvoicePage() {
         })),
       },
       {
-        onSuccess: (res) => {
+        onSuccess: async (res) => {
           isSubmittingSuccess.current = true;
           setFormIsDirty(false);
           setShowConfirm(false);
-          toast(<ToastSuccess message={t("invoice.requestCreatedSuccess")} />);
+
           const newId = res?.data;
+
+          // Request has been saved. The three cases below are handled
+          // explicitly so that staged files are never dropped silently.
+          if (stagedDocuments.length === 0) {
+            // Case 1: nothing was staged, so there is nothing to upload.
+            toast(
+              <ToastSuccess message={t("invoice.requestCreatedSuccess")} />,
+            );
+          } else if (!newId) {
+            // Case 2: the invoice was saved, but the server returned no ID,
+            // so there is no request to attach the documents to. Say so
+            // instead of showing a plain success toast and losing the files.
+            toast(
+              <ToastError
+                message={t("invoice.documents.uploadNoRequestId")}
+              />,
+            );
+          } else {
+            // Case 3: upload every staged file in a single batch.
+            setIsUploadingDocuments(true);
+            try {
+              await uploadDocuments({
+                id: newId,
+                files: stagedDocuments.map((doc) => doc.file),
+              });
+              toast(
+                <ToastSuccess message={t("invoice.requestCreatedSuccess")} />,
+              );
+            } catch {
+              toast(
+                <ToastError
+                  message={t("invoice.documents.uploadAfterCreateFailed")}
+                />,
+              );
+            } finally {
+              setIsUploadingDocuments(false);
+              // Cleared so the blocker is not triggered when navigating away.
+              setStagedDocuments([]);
+            }
+          }
+
+          // Always navigate to the detail page whether upload succeeds or fails:
+          // invoice is already saved and user can retry uploading there.
           if (newId) {
             navigate({
               to: "/invoices/$id/detail",
@@ -143,8 +201,10 @@ function CreateInvoicePage() {
                 swiftCode: primaryBank?.swiftCode || "",
               }}
               onSubmitSuccess={handleSuccess}
-              isSubmitting={isPending}
+              isSubmitting={isPending || isUploadingDocuments}
               onDirtyChange={setFormIsDirty}
+              stagedDocuments={stagedDocuments}
+              onStagedDocumentsChange={setStagedDocuments}
             />
           );
         })()}
@@ -154,7 +214,7 @@ function CreateInvoicePage() {
         open={showConfirm}
         onOpenChange={setShowConfirm}
         onConfirm={handleConfirmSubmit}
-        isLoading={isPending}
+        isLoading={isPending || isUploadingDocuments}
         title={
           pendingData?.status === "WAITING_APPROVAL"
             ? t("invoice.confirmSubmitTitle")

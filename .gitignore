@@ -36,3 +36,6 @@ plans/
 dev-dist/
 android/.gradle/
 android/build/
+
+# Local scratch
+prompt.txt

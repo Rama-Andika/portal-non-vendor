@@ -271,11 +271,6 @@ function AdminRequestDetailPage() {
           mode="view"
           requestId={id}
           defaultValues={defaultValues}
-          existingFiles={{
-            invoice_path: requestData.attachmentPath,
-            faktur_pajak_path: requestData.formPath,
-            approval_doc_path: requestData.approvalDocPath,
-          }}
           isAdminEdit={requestData.status === DOCUMENT_STATUS.WAITING_APPROVAL}
           onAdminFieldsChange={setAdminFields}
         />

@@ -15,9 +15,11 @@ import { InvoiceBasicInfo } from "./invoice-basic-info";
 import { InvoicePaymentInfo } from "./invoice-payment-info";
 import { InvoiceLineItems } from "./invoice-line-items";
 import { InvoiceSummary } from "./invoice-summary";
-import { InvoiceAttachments } from "./invoice-attachments";
+import { InvoiceDocuments } from "./invoice-documents";
 import { useQuery } from "@tanstack/react-query";
 import { nonVendorQueries } from "@/queries/non-vendor.queries";
+import type { PortalRequestStatus } from "@/types/portal-request.type";
+import type { StagedDocument } from "@/types/portal-request-document.type";
 
 export type InvoiceFormMode = "create" | "edit" | "view";
 
@@ -28,11 +30,11 @@ interface InvoiceFormProps {
   onSubmitSuccess?: (data: InvoiceFormValues) => void;
   isSubmitting?: boolean;
   onDirtyChange?: (isDirty: boolean) => void;
-  existingFiles?: {
-    invoice_path?: string | null;
-    faktur_pajak_path?: string | null;
-    approval_doc_path?: string | null;
-  };
+  /** Current request status. undefined when creating a new invoice. */
+  status?: PortalRequestStatus;
+  /** Supporting document files not yet uploaded (staging). */
+  stagedDocuments?: StagedDocument[];
+  onStagedDocumentsChange?: (next: StagedDocument[]) => void;
   isAdminEdit?: boolean;
   onAdminFieldsChange?: (fields: {
     departmentId: string | null;
@@ -48,7 +50,9 @@ export function InvoiceForm({
   onSubmitSuccess,
   isSubmitting,
   onDirtyChange,
-  existingFiles,
+  status,
+  stagedDocuments,
+  onStagedDocumentsChange,
   isAdminEdit,
   onAdminFieldsChange,
   journalNo,
@@ -292,15 +296,14 @@ export function InvoiceForm({
         isReadOnly={isReadOnly}
       >
 
-        {/* ── Attachment Section (inside Total Invoice, edit/detail only) ── */}
-        {mode !== "create" && (
-          <InvoiceAttachments
-            key={`${existingFiles?.invoice_path ?? ""}|${existingFiles?.faktur_pajak_path ?? ""}|${existingFiles?.approval_doc_path ?? ""}`}
-            requestId={requestId}
-            isReadOnly={isReadOnly}
-            existingFiles={existingFiles}
-          />
-        )}
+        {/* ── Supporting Documents Section (inside Total Invoice, all modes) ── */}
+        <InvoiceDocuments
+          requestId={requestId}
+          status={status}
+          isReadOnly={isReadOnly}
+          stagedDocuments={stagedDocuments ?? []}
+          onStagedDocumentsChange={onStagedDocumentsChange ?? (() => {})}
+        />
       </InvoiceSummary>
 
       {/* ── Action Buttons (at the very bottom of the page) ── */}

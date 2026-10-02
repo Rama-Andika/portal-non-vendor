@@ -23,6 +23,7 @@ import type {
   RequestPph23Payload,
   PphType,
 } from "@/types/portal-request.type";
+import type { PortalRequestDocument } from "@/types/portal-request-document.type";
 
 /**
  * Creates a new portal request for non-vendor.
@@ -316,6 +317,102 @@ export const deleteNonVendorRequestDetailFile = async (
 ): Promise<TResponse<void>> => {
   const response = await axiosInstance.delete<TResponse<void>>(
     `/rest/portal/non-vendor/detail/filename/${id}`,
+  );
+  return response.data;
+};
+
+/**
+ * Uploads one or multiple supporting documents (PDF) for a portal request.
+ *
+ * Multipart field name MUST be exactly "files" and repeated for each file
+ * (not "files[]" and not "files[0]").
+ *
+ * All-or-nothing: if a single file fails server validation,
+ * the entire batch is rejected.
+ *
+ * @param id    Portal request ID (invoice ID).
+ * @param files Array of PDF files to upload.
+ */
+export const uploadPortalRequestDocuments = async (
+  id: string,
+  files: File[],
+): Promise<TResponse<string>> => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const response = await axiosInstance.post<TResponse<string>>(
+    `/rest/portal/non-vendor/portal-requests/${id}/documents`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+  return response.data;
+};
+
+/**
+ * Fetches the metadata list of supporting documents belonging to a portal request.
+ * If there are no documents, `data` contains an empty array.
+ *
+ * @param id Portal request ID (invoice ID).
+ */
+export const getPortalRequestDocuments = async (
+  id: string,
+): Promise<TResponse<PortalRequestDocument[]>> => {
+  const response = await axiosInstance.get<TResponse<PortalRequestDocument[]>>(
+    `/rest/portal/non-vendor/portal-requests/${id}/documents`,
+  );
+  return response.data;
+};
+
+/**
+ * Downloads a single supporting document as a PDF Blob.
+ *
+ * @param documentId Document ID (`id` field from getPortalRequestDocuments),
+ *                   not portal request ID.
+ */
+export const downloadPortalRequestDocument = async (
+  documentId: string,
+): Promise<Blob> => {
+  const response = await axiosInstance.get(
+    `/rest/portal/non-vendor/portal-requests/documents/${documentId}`,
+    {
+      responseType: "blob",
+    },
+  );
+  return response.data;
+};
+
+/**
+ * Downloads all supporting documents of a portal request as a ZIP Blob.
+ *
+ * @param id Portal request ID (invoice ID).
+ */
+export const downloadAllPortalRequestDocuments = async (
+  id: string,
+): Promise<Blob> => {
+  const response = await axiosInstance.get(
+    `/rest/portal/non-vendor/portal-requests/${id}/documents/download-all`,
+    {
+      responseType: "blob",
+    },
+  );
+  return response.data;
+};
+
+/**
+ * Deletes a single supporting document.
+ * Only permitted by the server when request status is DRAFT or REVISION.
+ *
+ * @param documentId Document ID, not portal request ID.
+ */
+export const deletePortalRequestDocument = async (
+  documentId: string,
+): Promise<TResponse<string>> => {
+  const response = await axiosInstance.delete<TResponse<string>>(
+    `/rest/portal/non-vendor/portal-requests/documents/${documentId}`,
   );
   return response.data;
 };

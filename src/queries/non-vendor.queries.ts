@@ -37,6 +37,9 @@ import {
   uploadNonVendorRequestDetailFile,
   deleteNonVendorRequestDetailFile,
   patchRequestPph23,
+  uploadPortalRequestDocuments,
+  getPortalRequestDocuments,
+  deletePortalRequestDocument,
 } from "@/api/non-vendor.api";
 import type {
   UpdateNonVendorRequest,
@@ -64,6 +67,8 @@ export const nonVendorKeys = {
     details: () => [NON_VENDOR_KEY, "portal-requests", "detail"] as const,
     detail: (id: string) =>
       [NON_VENDOR_KEY, "portal-requests", "detail", id] as const,
+    documents: (id: string) =>
+      [NON_VENDOR_KEY, "portal-requests", "documents", id] as const,
   },
   lookups: {
     departments: (level?: number) =>
@@ -178,6 +183,20 @@ export const nonVendorQueries = {
       enabled: !!id,
       refetchOnMount: "always",
       refetchOnWindowFocus: "always",
+    }),
+
+  /**
+   * Query to fetch the supporting documents of a portal request.
+   *
+   * `enabled: !!id` is important: in create mode (new invoice) ID does not exist yet,
+   * so the query must not be executed.
+   */
+  portalRequestDocuments: (id: string) =>
+    queryOptions({
+      queryKey: nonVendorKeys.portalRequests.documents(id),
+      queryFn: () => getPortalRequestDocuments(id),
+      enabled: !!id,
+      refetchOnMount: "always",
     }),
 };
 
@@ -368,6 +387,48 @@ export const usePatchRequestPph23Mutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: nonVendorKeys.portalRequests.lists(),
+      });
+    },
+  });
+};
+
+/**
+ * Mutation hook to upload supporting documents (batch) to a portal request.
+ *
+ * Request ID is passed via variables, NOT via hook parameter, because on
+ * the create page the ID is only known after the request has been created.
+ */
+export const useUploadPortalRequestDocumentsMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, files }: { id: string; files: File[] }) =>
+      uploadPortalRequestDocuments(id, files),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: nonVendorKeys.portalRequests.documents(variables.id),
+      });
+    },
+  });
+};
+
+/**
+ * Mutation hook to delete a single supporting document.
+ *
+ * @param portalRequestId Parent portal request ID, used to invalidate
+ *                        the document list after successful deletion.
+ */
+export const useDeletePortalRequestDocumentMutation = (
+  portalRequestId: string,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      deletePortalRequestDocument(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: nonVendorKeys.portalRequests.documents(portalRequestId),
       });
     },
   });
