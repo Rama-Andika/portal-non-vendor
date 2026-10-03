@@ -306,7 +306,22 @@
     "exportCsv": "Download CSV",
     "exporting": "Downloading data...",
     "exportSuccess": "Data downloaded successfully as CSV.",
-    "exportError": "Failed to download data. Please try again."
+    "exportError": "Failed to download data. Please try again.",
+    "autoVat": {
+      "label": "Auto VAT",
+      "percentLabel": "VAT Percent",
+      "percentPlaceholder": "e.g. 11",
+      "hint": "One percentage applies to every line. If some lines are VAT exempt, turn this off and fill the VAT per line manually.",
+      "badge": "Auto VAT {{percent}}%",
+      "rowBadge": "auto",
+      "lockedHint": "Finish editing the current line item first.",
+      "enableTitle": "Enable Auto VAT?",
+      "enableDesc": "VAT values you entered manually on each line will be overwritten and cannot be restored. Continue?",
+      "enableConfirm": "Enable",
+      "disableTitle": "Disable Auto VAT?",
+      "disableDesc": "The last calculated VAT values stay filled in on every line so you can edit them manually. Continue?",
+      "disableConfirm": "Disable"
+    }
   },
   "settlement": {
     "title": "Settlement List",

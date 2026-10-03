@@ -38,6 +38,10 @@ interface InvoiceLineItemRowProps {
   detailFileActions: UseDetailFileActionsResult;
   /** File staged for this row (not uploaded yet), if any. */
   stagedFile?: File;
+  /** 1 when the request-level Auto VAT is on; the row's VAT inputs become read-only text. */
+  autoVat?: number;
+  /** The request-level Auto VAT percentage, shown instead of the per-row input. */
+  autoVatPercent?: number | null;
 }
 
 export function InvoiceLineItemRow({
@@ -57,7 +61,10 @@ export function InvoiceLineItemRow({
   filename,
   detailFileActions,
   stagedFile,
+  autoVat,
+  autoVatPercent,
 }: InvoiceLineItemRowProps) {
+  const isAutoVat = autoVat === 1;
   const { t } = useTranslation();
   // Local display states for BUG-3 fix
   const [displayAmount, setDisplayAmount] = useState("");
@@ -228,6 +235,11 @@ export function InvoiceLineItemRow({
             <span className="text-xs text-slate-400 font-normal">
               Rp {formatNumberWithDecimals(field.vatAmount || 0)}
             </span>
+            {isAutoVat && (
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-main">
+                {t("invoice.autoVat.rowBadge")}
+              </span>
+            )}
           </div>
         </TableCell>
         <TableCell className="px-4 py-5 text-center align-top pt-7">
@@ -375,37 +387,51 @@ export function InvoiceLineItemRow({
         />
       </TableCell>
       <TableCell className="px-4 py-5 text-right align-top">
-        <div className="flex flex-col gap-2 w-28 ml-auto">
-          <div className="relative group">
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300">
-              %
-            </div>
-            <Input
-              type="text"
-              value={displayVatPercent}
-              onChange={handleVatPercentChange}
-              placeholder="0"
-              className="rounded-xl text-right font-semibold pr-6 h-9 w-full text-xs shadow-sm focus:ring-main/20 focus:border-main"
-            />
+        {isAutoVat ? (
+          // Auto VAT aktif: VAT baris ini dihitung dari persen di header, jadi
+          // inputnya diganti teks. Nilainya dijaga oleh updateTempItem di InvoiceForm.
+          <div className="flex flex-col gap-0.5 w-28 ml-auto pt-2 text-right font-semibold text-slate-600 dark:text-slate-400">
+            <span>{autoVatPercent ?? 0}%</span>
+            <span className="text-xs text-slate-400 font-normal">
+              Rp {formatNumberWithDecimals(tempItem.vatAmount || 0)}
+            </span>
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-main">
+              {t("invoice.autoVat.rowBadge")}
+            </span>
           </div>
-          <div className="relative group">
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300">
-              Rp
+        ) : (
+          <div className="flex flex-col gap-2 w-28 ml-auto">
+            <div className="relative group">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300">
+                %
+              </div>
+              <Input
+                type="text"
+                value={displayVatPercent}
+                onChange={handleVatPercentChange}
+                placeholder="0"
+                className="rounded-xl text-right font-semibold pr-6 h-9 w-full text-xs shadow-sm focus:ring-main/20 focus:border-main"
+              />
             </div>
-            <Input
-              type="text"
-              value={displayVatAmount}
-              onChange={handleVatAmountChange}
-              onBlur={() =>
-                setDisplayVatAmount(
-                  formatNumberWithDecimals(tempItem.vatAmount || 0),
-                )
-              }
-              placeholder="0"
-              className="rounded-xl text-right font-semibold pl-6 pr-2 h-9 w-full text-xs shadow-sm focus:ring-main/20 focus:border-main"
-            />
+            <div className="relative group">
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-300">
+                Rp
+              </div>
+              <Input
+                type="text"
+                value={displayVatAmount}
+                onChange={handleVatAmountChange}
+                onBlur={() =>
+                  setDisplayVatAmount(
+                    formatNumberWithDecimals(tempItem.vatAmount || 0),
+                  )
+                }
+                placeholder="0"
+                className="rounded-xl text-right font-semibold pl-6 pr-2 h-9 w-full text-xs shadow-sm focus:ring-main/20 focus:border-main"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </TableCell>
       <TableCell className="px-4 py-5 align-top pt-7 text-center">
         <SelectReact

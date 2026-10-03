@@ -108,6 +108,11 @@ function UpdateInvoicePage() {
       vatAmount: requestData.vatAmount,
       pphPercent: requestData.pphPercent,
       pphAmount: requestData.pphAmount,
+      autoVat: requestData.autoVat ?? 0,
+      // Persen hanya bermakna saat autoVat = 1. Saat 0, server mengembalikan 0
+      // dan di form kita jadikan null supaya artinya tetap "belum diisi".
+      autoVatPercent:
+        requestData.autoVat === 1 ? (requestData.autoVatPercent ?? null) : null,
       items: requestData.details.map((detail) => ({
         id: detail.id,
         description: detail.description,
@@ -221,6 +226,10 @@ function UpdateInvoicePage() {
         vatPercent: pendingData.vatPercent,
         pphAmount: pendingData.pphAmount,
         pphPercent: pendingData.pphPercent,
+        autoVat: pendingData.autoVat,
+        // Server tidak menerima null. Saat autoVat = 0 nilainya memang diabaikan
+        // backend dan selalu disimpan sebagai 0.
+        autoVatPercent: pendingData.autoVatPercent ?? 0,
         portalNonVendorUserId: user?.id ?? "",
         details: pendingData.items.map((item) => {
           const isUuid = isFrontendUUID(item.id);

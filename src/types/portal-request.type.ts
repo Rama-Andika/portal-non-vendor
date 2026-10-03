@@ -123,6 +123,10 @@ export interface CreatePortalRequestPayload {
   vatPercent: number;
   pphAmount: number;
   pphPercent: number;
+  /** 0 = VAT manual per baris, 1 = VAT dihitung otomatis backend. Kirim hanya 0 atau 1. */
+  autoVat: number;
+  /** Persen VAT 0-100. Nilainya diabaikan backend saat autoVat = 0. */
+  autoVatPercent: number;
   details: CreatePortalRequestDetailPayload[];
 }
 
@@ -157,6 +161,10 @@ export interface UpdatePortalRequestPayload {
   vatPercent: number;
   pphAmount: number;
   pphPercent: number;
+  /** 0 = VAT manual per baris, 1 = VAT dihitung otomatis backend. Kirim hanya 0 atau 1. */
+  autoVat: number;
+  /** Persen VAT 0-100. Nilainya diabaikan backend saat autoVat = 0. */
+  autoVatPercent: number;
   details: UpdatePortalRequestDetailPayload[];
 }
 
@@ -216,6 +224,10 @@ export interface PortalRequestDetailResponse {
   settlementDocPath2?: string;
   settlementTransferDocPath?: string;
   reason?: string;
+  /** BARU: 0 atau 1. Dipakai untuk mengisi kondisi checkbox saat form edit dibuka. */
+  autoVat?: number;
+  /** BARU: persen yang tersimpan. Bernilai 0 kalau autoVat = 0. */
+  autoVatPercent?: number;
   details: PortalRequestDetailItem[];
 }
 

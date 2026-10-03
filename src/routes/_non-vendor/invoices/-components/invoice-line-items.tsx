@@ -19,6 +19,7 @@ import type { PphType } from "@/types/portal-request.type";
 import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
 import { getStagedDetailFile } from "@/utils/portal-request-detail-file";
 import type { UseDetailFileActionsResult } from "./use-detail-file-actions";
+import { InvoiceAutoVatControl } from "./invoice-auto-vat-control";
 
 interface InvoiceLineItemsProps {
   control: Control<InvoiceFormValues>;
@@ -38,6 +39,12 @@ interface InvoiceLineItemsProps {
   requestId?: string;
   stagedDetailFiles: StagedDetailFile[];
   detailFileActions: UseDetailFileActionsResult;
+  /** 0 = VAT manual per baris, 1 = VAT dihitung otomatis backend. */
+  autoVat: number;
+  /** null berarti belum diisi. Angka 0 adalah nilai yang sah. */
+  autoVatPercent: number | null;
+  onAutoVatToggle: (checked: boolean) => void;
+  onAutoVatPercentChange: (value: number | null) => void;
 }
 
 export function InvoiceLineItems({
@@ -58,6 +65,10 @@ export function InvoiceLineItems({
   requestId,
   stagedDetailFiles,
   detailFileActions,
+  autoVat,
+  autoVatPercent,
+  onAutoVatToggle,
+  onAutoVatPercentChange,
 }: InvoiceLineItemsProps) {
   const { t } = useTranslation();
   const watchedItems = useWatch({ control, name: "items" }) || [];
@@ -71,20 +82,37 @@ export function InvoiceLineItems({
           </div>
           <h3 className="font-semibold text-slate-800 dark:text-slate-100 uppercase tracking-widest text-xs">{t("invoice.lineItems")}</h3>
         </div>
-        {!isReadOnly && (
-          <Button 
-            type="button"
-            onClick={onAdd}
-            disabled={editingIndex !== null}
-            variant="outline"
-            className={cn(
-              "h-10 border-main text-main hover:bg-main hover:text-white rounded-xl font-semibold px-5 transition-all shadow-sm",
-              editingIndex !== null && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            <Plus className="w-4 h-4 mr-2" /> {t("invoice.addItem")}
-          </Button>
-        )}
+        <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
+          {/*
+            key={autoVat} membuat komponen remount setiap checkbox di-toggle, sehingga
+            state teks input persen di dalamnya ikut ter-reset tanpa perlu useEffect.
+          */}
+          <InvoiceAutoVatControl
+            key={autoVat}
+            autoVat={autoVat}
+            autoVatPercent={autoVatPercent}
+            onToggle={onAutoVatToggle}
+            onPercentChange={onAutoVatPercentChange}
+            isLocked={editingIndex !== null}
+            isReadOnly={isReadOnly}
+            errorMessage={errors.autoVatPercent?.message}
+          />
+
+          {!isReadOnly && (
+            <Button
+              type="button"
+              onClick={onAdd}
+              disabled={editingIndex !== null}
+              variant="outline"
+              className={cn(
+                "h-10 shrink-0 border-main text-main hover:bg-main hover:text-white rounded-xl font-semibold px-5 transition-all shadow-sm",
+                editingIndex !== null && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Plus className="w-4 h-4 mr-2" /> {t("invoice.addItem")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
@@ -129,6 +157,8 @@ export function InvoiceLineItems({
                   stagedDetailFiles,
                   watchedItems[index]?.id ?? "",
                 )}
+                autoVat={autoVat}
+                autoVatPercent={autoVatPercent}
               />
             ))}
             {fields.length === 0 && (

@@ -93,6 +93,11 @@ function AdminRequestDetailPage() {
         vatPercent: requestData.vatPercent,
         pphAmount: requestData.pphAmount,
         pphPercent: requestData.pphPercent,
+        // Dikirim ulang apa adanya. Admin tidak boleh mengubah nilainya, tetapi
+        // PUT ini menulis seluruh body: kalau dua field ini tidak ikut dikirim,
+        // flag auto VAT pada request itu akan hilang (menjadi 0).
+        autoVat: requestData.autoVat ?? 0,
+        autoVatPercent: requestData.autoVatPercent ?? 0,
         portalNonVendorUserId: requestData.portalNonVendorUserId,
         details: requestData.details.map((d) => ({
           id: String(d.id || ""),
@@ -170,6 +175,9 @@ function AdminRequestDetailPage() {
     vatAmount: requestData.vatAmount,
     pphPercent: requestData.pphPercent,
     pphAmount: requestData.pphAmount,
+    autoVat: requestData.autoVat ?? 0,
+    autoVatPercent:
+      requestData.autoVat === 1 ? (requestData.autoVatPercent ?? null) : null,
     items: requestData.details.map((detail) => ({
       id: detail.id,
       description: detail.description,

@@ -74,8 +74,33 @@ export const invoiceFormSchema = z.object({
   vatAmount: z.number().default(0),
   pphPercent: z.number().default(0),
   pphAmount: z.number().default(0),
+  // 0 = VAT manual per baris, 1 = VAT dihitung otomatis backend.
+  autoVat: z.number().default(0),
+  // null berarti "belum diisi". Angka 0 adalah nilai yang SAH (VAT 0% / non-PPN),
+  // jadi 0 tidak boleh diperlakukan sebagai kosong.
+  autoVatPercent: z.number().nullable().default(null),
   items: z.array(invoiceItemSchema).min(1, "At least one item is required"),
-});
+})
+  .refine(
+    (data) => {
+      if (data.autoVat !== 1) return true;
+      return data.autoVatPercent !== null;
+    },
+    {
+      message: "VAT percent is required when Auto VAT is enabled",
+      path: ["autoVatPercent"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.autoVat !== 1 || data.autoVatPercent === null) return true;
+      return data.autoVatPercent >= 0 && data.autoVatPercent <= 100;
+    },
+    {
+      message: "VAT percent must be between 0 and 100",
+      path: ["autoVatPercent"],
+    },
+  );
 
 export type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 export type InvoiceItemValues = z.infer<typeof invoiceItemSchema>;

@@ -104,6 +104,10 @@ function CreateInvoicePage() {
         vatPercent: pendingData.vatPercent,
         pphAmount: pendingData.pphAmount,
         pphPercent: pendingData.pphPercent,
+        autoVat: pendingData.autoVat,
+        // Server tidak menerima null. Saat autoVat = 0 nilainya memang diabaikan
+        // backend dan selalu disimpan sebagai 0.
+        autoVatPercent: pendingData.autoVatPercent ?? 0,
         portalNonVendorUserId: user?.id ?? "",
         details: pendingData.items.map((item) => ({
           description: item.description,

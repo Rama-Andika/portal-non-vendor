@@ -20,6 +20,8 @@ import { InvoiceDetailFiles } from "./invoice-detail-files";
 import { useDetailFileActions } from "./use-detail-file-actions";
 import { useQuery } from "@tanstack/react-query";
 import { nonVendorQueries } from "@/queries/non-vendor.queries";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { calcAutoVatAmount } from "@/utils/numbers";
 import type { PortalRequestStatus } from "@/types/portal-request.type";
 import type { StagedDocument } from "@/types/portal-request-document.type";
 import type { StagedDetailFile } from "@/types/portal-request-detail-file.type";
@@ -98,6 +100,8 @@ export function InvoiceForm({
       vatAmount: 0,
       pphPercent: 0,
       pphAmount: 0,
+      autoVat: 0,
+      autoVatPercent: null,
       items: [],
       ...defaultValues,
     },
@@ -119,7 +123,7 @@ export function InvoiceForm({
   const currencies = currResponse?.data ?? [];
   const pphTypes = pphTypesResponse?.data ?? [];
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove, update, replace } = useFieldArray({
     control,
     name: "items",
   });
@@ -129,6 +133,8 @@ export function InvoiceForm({
   const vatAmount = useWatch({ control, name: "vatAmount" }) || 0;
   const pphPercent = useWatch({ control, name: "pphPercent" }) || 0;
   const pphAmount = useWatch({ control, name: "pphAmount" }) || 0;
+  const autoVat = useWatch({ control, name: "autoVat" }) || 0;
+  const autoVatPercent = useWatch({ control, name: "autoVatPercent" }) ?? null;
   const watchedRequestType = useWatch({
     control,
     name: "requestType",
@@ -160,6 +166,10 @@ export function InvoiceForm({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
   const [tempItem, setTempItem] = useImmer<Partial<InvoiceItemValues>>({});
+  /** null = tidak ada dialog yang terbuka. */
+  const [autoVatConfirm, setAutoVatConfirm] = useState<
+    "enable" | "disable" | null
+  >(null);
 
   const subTotal = useMemo(() => {
     return (watchedItems || []).reduce(
@@ -182,14 +192,107 @@ export function InvoiceForm({
 
   const grandTotal = subTotal + vatAmount - pphAmount;
 
+  /**
+   * Menghitung ulang vatPercent, vatAmount, dan subTotal untuk SEMUA baris
+   * rincian dengan satu persen Auto VAT.
+   *
+   * Wajib dipanggil setiap kali persen berubah dan setiap kali Auto VAT
+   * dinyalakan. Tanpa ini, subTotal baris yang tidak sedang diedit tidak ikut
+   * berubah, sehingga total di layar berbeda dari total yang tersimpan di server.
+   *
+   * Memakai `replace` (bukan `update` per baris) supaya seluruh array ditulis
+   * dalam satu kali operasi.
+   */
+  const applyAutoVatToAllItems = (percent: number) => {
+    const current = (watchedItems ?? []) as InvoiceItemValues[];
+    replace(
+      current.map((item) => {
+        const vatAmount = calcAutoVatAmount(
+          item.qty || 1,
+          item.price || 0,
+          item.rate || 0,
+          percent,
+        );
+        const base = (item.price || 0) * (item.rate || 0);
+        return {
+          ...item,
+          vatPercent: percent,
+          vatAmount,
+          subTotal: base + vatAmount - (item.pphAmount || 0),
+        };
+      }),
+    );
+  };
+
   const updateTempItem = (
     updater: (draft: Partial<InvoiceItemValues>) => void,
   ) => {
     setTempItem((draft) => {
       updater(draft);
+
+      // Saat Auto VAT aktif, VAT baris ini SELALU ditimpa hasil hitung dari
+      // persen di header. Apa pun yang ditulis `updater` ke vatPercent atau
+      // vatAmount diabaikan di sini, sama seperti yang dilakukan backend
+      // (dokumen API Auto VAT bagian 4.1).
+      if (autoVat === 1) {
+        const percent = autoVatPercent ?? 0;
+        draft.vatPercent = percent;
+        draft.vatAmount = calcAutoVatAmount(
+          draft.qty || 1,
+          draft.price || 0,
+          draft.rate || 0,
+          percent,
+        );
+      }
+
       const base = (draft.price || 0) * (draft.rate || 0);
       draft.subTotal = base + (draft.vatAmount || 0) - (draft.pphAmount || 0);
     });
+  };
+
+  /** true kalau ada minimal satu baris yang VAT manualnya sudah terisi. */
+  const hasManualVat = ((watchedItems ?? []) as InvoiceItemValues[]).some(
+    (item) => (item.vatAmount || 0) !== 0 || (item.vatPercent || 0) !== 0,
+  );
+
+  const applyEnableAutoVat = () => {
+    setValue("autoVat", 1, { shouldDirty: true });
+    // Persen selalu dimulai kosong supaya user menentukannya secara sadar.
+    setValue("autoVatPercent", null, { shouldDirty: true });
+    // Nol-kan VAT semua baris sekarang supaya angka di layar jujur: checkbox
+    // sudah menyala tetapi persennya belum diisi. Submit tetap ditahan zod
+    // sampai persennya terisi.
+    applyAutoVatToAllItems(0);
+  };
+
+  const applyDisableAutoVat = () => {
+    setValue("autoVat", 0, { shouldDirty: true });
+    setValue("autoVatPercent", null, { shouldDirty: true });
+    // Baris rincian TIDAK disentuh. vatPercent dan vatAmount tiap baris tetap
+    // berisi hasil hitung otomatis yang terakhir, sehingga user bisa langsung
+    // mengeditnya alih-alih mengisi ulang dari nol.
+  };
+
+  const handleAutoVatToggle = (checked: boolean) => {
+    if (checked) {
+      // Menyalakan Auto VAT menimpa VAT manual tiap baris, jadi konfirmasi
+      // hanya perlu muncul kalau memang ada yang akan hilang.
+      if (hasManualVat) {
+        setAutoVatConfirm("enable");
+        return;
+      }
+      applyEnableAutoVat();
+      return;
+    }
+    setAutoVatConfirm("disable");
+  };
+
+  const handleAutoVatPercentChange = (value: number | null) => {
+    setValue("autoVatPercent", value, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    applyAutoVatToAllItems(value ?? 0);
   };
 
   const handleAddItem = () => {
@@ -206,7 +309,11 @@ export function InvoiceForm({
       price: 0,
       rate: currencies[0]?.rate ?? 1,
       subTotal: 0,
-      vatPercent: 0,
+      // Baris baru langsung memakai persen Auto VAT kalau fiturnya aktif, supaya
+      // kolom VAT-nya tidak menampilkan 0% padahal baris lain memakai persen itu.
+      // vatAmount tetap 0 karena price-nya masih 0; nilainya dihitung oleh
+      // updateTempItem begitu user mengisi harga.
+      vatPercent: autoVat === 1 ? (autoVatPercent ?? 0) : 0,
       vatAmount: 0,
       pphPercent: 0,
       pphAmount: 0,
@@ -303,6 +410,10 @@ export function InvoiceForm({
         requestId={requestId}
         stagedDetailFiles={stagedDetailFiles ?? []}
         detailFileActions={detailFileActions}
+        autoVat={autoVat}
+        autoVatPercent={autoVatPercent}
+        onAutoVatToggle={handleAutoVatToggle}
+        onAutoVatPercentChange={handleAutoVatPercentChange}
       />
 
       <InvoiceSummary
@@ -379,6 +490,44 @@ export function InvoiceForm({
           )}
         </div>
       )}
+
+      {/*
+        Dua transisi Auto VAT sama-sama mengubah data yang sudah ada, jadi
+        keduanya dikonfirmasi. Transisi "menyalakan" hanya dikonfirmasi kalau
+        memang ada VAT manual yang akan ditimpa; pemeriksaan itu ada di
+        handleAutoVatToggle.
+      */}
+      <ConfirmDialog
+        open={autoVatConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setAutoVatConfirm(null);
+        }}
+        onConfirm={() => {
+          if (autoVatConfirm === "enable") {
+            applyEnableAutoVat();
+          } else if (autoVatConfirm === "disable") {
+            applyDisableAutoVat();
+          }
+          setAutoVatConfirm(null);
+        }}
+        variant="warning"
+        title={
+          autoVatConfirm === "enable"
+            ? t("invoice.autoVat.enableTitle")
+            : t("invoice.autoVat.disableTitle")
+        }
+        description={
+          autoVatConfirm === "enable"
+            ? t("invoice.autoVat.enableDesc")
+            : t("invoice.autoVat.disableDesc")
+        }
+        confirmText={
+          autoVatConfirm === "enable"
+            ? t("invoice.autoVat.enableConfirm")
+            : t("invoice.autoVat.disableConfirm")
+        }
+        cancelText={t("common.cancel")}
+      />
     </form>
   );
 }

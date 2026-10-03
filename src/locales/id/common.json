@@ -306,7 +306,22 @@
     "exportCsv": "Download CSV",
     "exporting": "Mengunduh data...",
     "exportSuccess": "Data berhasil diunduh sebagai CSV.",
-    "exportError": "Gagal mengunduh data. Silakan coba lagi."
+    "exportError": "Gagal mengunduh data. Silakan coba lagi.",
+    "autoVat": {
+      "label": "VAT Otomatis",
+      "percentLabel": "Persen VAT",
+      "percentPlaceholder": "cth. 11",
+      "hint": "Satu persen berlaku untuk semua baris. Kalau ada baris yang bebas PPN, matikan opsi ini dan isi VAT per baris secara manual.",
+      "badge": "VAT otomatis {{percent}}%",
+      "rowBadge": "otomatis",
+      "lockedHint": "Selesaikan dulu baris rincian yang sedang diedit.",
+      "enableTitle": "Aktifkan VAT Otomatis?",
+      "enableDesc": "Nilai VAT yang sudah diisi manual pada setiap baris akan ditimpa dan tidak bisa dikembalikan. Lanjutkan?",
+      "enableConfirm": "Aktifkan",
+      "disableTitle": "Matikan VAT Otomatis?",
+      "disableDesc": "Nilai VAT hasil hitung terakhir akan tetap terisi pada setiap baris dan bisa Anda ubah manual. Lanjutkan?",
+      "disableConfirm": "Matikan"
+    }
   },
   "settlement": {
     "title": "Daftar Settlement",

@@ -137,6 +137,8 @@ export function UpdateStatusDialog({
             vatPercent: currentReq.vatPercent,
             pphAmount: currentReq.pphAmount,
             pphPercent: currentReq.pphPercent,
+            autoVat: currentReq.autoVat ?? 0,
+            autoVatPercent: currentReq.autoVatPercent ?? 0,
             portalNonVendorUserId: currentReq.portalNonVendorUserId,
             details: currentReq.details.map((d) => ({
               id: String(d.id || ""),
